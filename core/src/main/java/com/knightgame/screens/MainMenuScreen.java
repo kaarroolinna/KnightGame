@@ -1,4 +1,4 @@
-package com.knightgame;
+package com.knightgame.screens;
 
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.Screen;
@@ -45,8 +45,8 @@ public class MainMenuScreen implements Screen {
             @Override
             public void clicked(InputEvent event, float x, float y) {
                 // Розпочати нову гру
-              //  game.newGame();
-              //  game.setScreen(new GameScreen(game));
+               //game.newGame();
+               game.setScreen(new GameScreen(game));
             }
         });
 

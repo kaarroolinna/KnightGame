@@ -1,7 +1,7 @@
 package com.knightgame;
 
 import com.badlogic.gdx.Game;
-import com.knightgame.MainMenuScreen;
+import com.knightgame.screens.MainMenuScreen;
 
 public class KnightGame extends Game {
     @Override
