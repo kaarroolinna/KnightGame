@@ -1,0 +1,15 @@
+package com.knightgame.lwjgl3;
+
+import com.badlogic.gdx.backends.lwjgl3.Lwjgl3Application;
+import com.badlogic.gdx.backends.lwjgl3.Lwjgl3ApplicationConfiguration;
+import com.knightgame.KnightGame;
+
+/** Launches the desktop (LWJGL3) application. */
+public class Lwjgl3Launcher {
+    public static void main(String[] args) {
+        Lwjgl3ApplicationConfiguration config = new Lwjgl3ApplicationConfiguration();
+        config.setTitle("My Knight Game");
+        config.setWindowedMode(800, 480);
+        new Lwjgl3Application(new KnightGame(), config);
+    }
+}
