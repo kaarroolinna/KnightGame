@@ -14,7 +14,7 @@ public class GameScreen implements Screen {
     private Texture knightTexture;
     private Texture backgroundTexture;
     private float x, y;
-    private float speed = 200f; // pixels per second
+    private float speed = 200f;
 
     public GameScreen(KnightGame game) {
         this.game = game;
@@ -23,16 +23,14 @@ public class GameScreen implements Screen {
     @Override
     public void show() {
         batch = new SpriteBatch();
-        backgroundTexture = new Texture("background.png"); // додай фон в assets
+        backgroundTexture = new Texture("background.png");
         knightTexture = new Texture("knight.png");
-        // Початкова позиція
         x = Gdx.graphics.getWidth() / 2f - knightTexture.getWidth() / 2f;
         y = Gdx.graphics.getHeight() / 2f - knightTexture.getHeight() / 2f;
     }
 
     @Override
     public void render(float delta) {
-        // Очищення екрану
         ScreenUtils.clear(0, 0, 0, 1);
 
         // Обробка вводу для руху
