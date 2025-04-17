@@ -11,5 +11,6 @@ public class Lwjgl3Launcher {
         config.setTitle("My Knight Game");
         config.setWindowedMode(800, 480);
         new Lwjgl3Application(new KnightGame(), config);
+
     }
 }
