@@ -13,8 +13,14 @@ public class GameScreen implements Screen {
     private SpriteBatch batch;
     private Texture knightTexture;
     private Texture backgroundTexture;
+
+    // Позиції та швидкості
     private float x, y;
-    private float speed = 200f;
+    private float velocityY = 0;
+    private final float speed = 200f;          // горизонтальна швидкість
+    private final float gravity = 1000f;       // прискорення вільного падіння
+    private final float jumpVelocity = 500f;   // початкова швидкість стрибка
+    private float groundY;                     // рівень "землі" по вісі Y
 
     public GameScreen(KnightGame game) {
         this.game = game;
@@ -25,21 +31,19 @@ public class GameScreen implements Screen {
         batch = new SpriteBatch();
         backgroundTexture = new Texture("background.png");
         knightTexture = new Texture("knight.png");
+
+        // Земля
+        groundY = 0;
+
+        // Початкова позиція лицаря
         x = Gdx.graphics.getWidth() / 2f - knightTexture.getWidth() / 2f;
-        y = Gdx.graphics.getHeight() / 2f - knightTexture.getHeight() / 2f;
+        y = groundY;
     }
 
     @Override
     public void render(float delta) {
         ScreenUtils.clear(0, 0, 0, 1);
 
-        // Обробка вводу для руху
-        if (Gdx.input.isKeyPressed(Input.Keys.W)) {
-            y += speed * delta;
-        }
-        if (Gdx.input.isKeyPressed(Input.Keys.S)) {
-            y -= speed * delta;
-        }
         if (Gdx.input.isKeyPressed(Input.Keys.A)) {
             x -= speed * delta;
         }
@@ -47,23 +51,42 @@ public class GameScreen implements Screen {
             x += speed * delta;
         }
 
+        // Стрибок: тільки коли на землі
+        if ((Gdx.input.isKeyJustPressed(Input.Keys.W) || Gdx.input.isKeyJustPressed(Input.Keys.SPACE))
+            && y <= groundY + 0.1f) {
+            velocityY = jumpVelocity;
+        }
+
+        // Фізика гравітації
+        velocityY -= gravity * delta;    // прискорення вниз
+        y += velocityY * delta;          // зміна висоти
+
+        // Обмежуємо знизу землею
+        if (y < groundY) {
+            y = groundY;
+            velocityY = 0;
+        }
+
         // Малювання
         batch.begin();
-        batch.draw(backgroundTexture, 0, 0, Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
+
+        batch.draw(backgroundTexture, 0, 0,
+            Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
+
         batch.draw(knightTexture, x, y);
         batch.end();
     }
 
     @Override
     public void resize(int width, int height) {
-        // Можна оновити камеру або viewport
+
     }
 
     @Override
-    public void pause() {}
+    public void pause() { }
 
     @Override
-    public void resume() {}
+    public void resume() { }
 
     @Override
     public void hide() {
