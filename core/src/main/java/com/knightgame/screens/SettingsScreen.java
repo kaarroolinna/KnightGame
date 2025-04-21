@@ -22,12 +22,14 @@ public class SettingsScreen implements Screen {
     private final KnightGame game;
     private Stage stage;
     private Skin skin;
+    private Texture grayTexture;
+
     private Slider volumeSlider;
     private CheckBox muteCheckbox;
     private TextButton skipTutorialButton;
     private TextButton restartLevelButton;
+    private TextButton saveButton;
     private TextButton backButton;
-    private TextButton saveButton; // Кнопка збереження налаштувань
 
     public SettingsScreen(KnightGame game) {
         this.game = game;
@@ -35,33 +37,36 @@ public class SettingsScreen implements Screen {
 
     @Override
     public void show() {
+        // Створюємо сцену і обробник вводу
         stage = new Stage(new ScreenViewport());
         Gdx.input.setInputProcessor(stage);
 
+        // Завантажуємо скіни
         skin = new Skin(Gdx.files.internal("uiskin.json"));
+
+        // Створюємо таблицю для розмітки
         Table table = new Table(skin);
         table.setFillParent(true);
-        table.top();  // Встановлюємо верхнє вирівнювання
+        table.top();
         stage.addActor(table);
 
         // Додаємо сірий фон
-        Texture grayTexture = new Texture(Gdx.files.internal("gray_background.png")); // Якщо є файл gray_background.png
-        TextureRegionDrawable drawable = new TextureRegionDrawable(new TextureRegion(grayTexture));
-        table.setBackground(drawable);  // Встановлюємо фон для таблиці
+        grayTexture = new Texture(Gdx.files.internal("gray_background.png"));
+        TextureRegionDrawable bg = new TextureRegionDrawable(new TextureRegion(grayTexture));
+        table.setBackground(bg);
 
         // Volume Slider
         volumeSlider = new Slider(0f, 1f, 0.01f, false, skin);
-        // volumeSlider.setValue(game.getSettings().getVolume());
         volumeSlider.addListener(new ChangeListener() {
             @Override
             public void changed(ChangeEvent event, com.badlogic.gdx.scenes.scene2d.Actor actor) {
+                // тут можна оновити налаштування звуку
                 // game.getSettings().setVolume(volumeSlider.getValue());
             }
         });
 
         // Mute Checkbox
         muteCheckbox = new CheckBox("Mute Sound", skin);
-        // muteCheckbox.setChecked(game.getSettings().isMuted());
         muteCheckbox.addListener(new ChangeListener() {
             @Override
             public void changed(ChangeEvent event, com.badlogic.gdx.scenes.scene2d.Actor actor) {
@@ -87,7 +92,7 @@ public class SettingsScreen implements Screen {
             }
         });
 
-        // Save Button to save the settings
+        // Save Settings Button
         saveButton = new TextButton("Save Settings", skin);
         saveButton.addListener(new ClickListener() {
             @Override
@@ -96,61 +101,47 @@ public class SettingsScreen implements Screen {
             }
         });
 
-        // Back Button to Main Menu
+        // Back Button
         backButton = new TextButton("Back", skin);
         backButton.addListener(new ClickListener() {
             @Override
             public void clicked(InputEvent event, float x, float y) {
-                // Переходимо до головного меню
                 game.setScreen(new MainMenuScreen(game));
-
             }
         });
 
-        // Layout
+        // Розміщуємо всі елементи в таблиці
         table.pad(20);
         table.add("Settings").colspan(2).padBottom(20).row();
-        table.add("Volume");
+        table.add("Volume").left();
         table.add(volumeSlider).width(200).row();
         table.add(muteCheckbox).colspan(2).padTop(10).row();
         table.add(skipTutorialButton).colspan(2).padTop(20).row();
         table.add(restartLevelButton).colspan(2).padTop(10).row();
-        table.add(saveButton).colspan(2).padTop(20).row();  // Додаємо кнопку збереження
+        table.add(saveButton).colspan(2).padTop(20).row();
         table.add(backButton).colspan(2).padTop(30);
-    }
-
-    // Метод для збереження налаштувань
-    private void saveSettings() {
-        // Ваш код для збереження налаштувань гри
-        // Наприклад, збереження значень volumeSlider та muteCheckbox
-        float volume = volumeSlider.getValue();
-        boolean isMuted = muteCheckbox.isChecked();
-
-        // Приклад збереження налаштувань:
-        // game.getSettings().setVolume(volume);
-        // game.getSettings().setMuted(isMuted);
-
-        // Можна також зберігати налаштування у файл або через Preferences
-        System.out.println("Settings saved: Volume = " + volume + ", Mute = " + isMuted);
     }
 
     @Override
     public void render(float delta) {
-        Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT);  // Очищуємо екран
-        stage.act(delta);  // Оновлюємо сцени
-        stage.draw();  // Малюємо сцени
+        // Очищуємо екран перед малюванням
+        Gdx.gl.glClearColor(0f, 0f, 0f, 1f);
+        Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT);
+
+        stage.act(delta);
+        stage.draw();
     }
 
     @Override
     public void resize(int width, int height) {
-        stage.getViewport().update(width, height, true);  // Оновлюємо розміри сцени
+        stage.getViewport().update(width, height, true);
     }
 
     @Override
-    public void pause() {}
+    public void pause() { }
 
     @Override
-    public void resume() {}
+    public void resume() { }
 
     @Override
     public void hide() {
@@ -159,7 +150,18 @@ public class SettingsScreen implements Screen {
 
     @Override
     public void dispose() {
-        stage.dispose();  // Очищаємо сцену
-        skin.dispose();   // Очищаємо шкіру
+        stage.dispose();
+        skin.dispose();
+        grayTexture.dispose();
+    }
+
+    // Метод для збереження налаштувань гри
+    private void saveSettings() {
+        float volume = volumeSlider.getValue();
+        boolean isMuted = muteCheckbox.isChecked();
+        // Приклад: зберігаємо в налаштуваннях гри або Preferences
+        // game.getSettings().setVolume(volume);
+        // game.getSettings().setMuted(isMuted);
+        System.out.println("Settings saved: Volume = " + volume + ", Mute = " + isMuted);
     }
 }

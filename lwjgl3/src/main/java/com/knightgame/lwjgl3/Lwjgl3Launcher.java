@@ -8,7 +8,7 @@ public class Lwjgl3Launcher {
     public static void main(String[] args) {
         Lwjgl3ApplicationConfiguration config = new Lwjgl3ApplicationConfiguration();
         config.setTitle("My Knight Game");
-        config.setWindowedMode(800, 480);
+        config.setWindowedMode(1920, 1080);
         new Lwjgl3Application(new KnightGame(), config);
 
     }
