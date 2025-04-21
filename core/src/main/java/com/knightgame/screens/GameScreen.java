@@ -38,6 +38,8 @@ public class GameScreen implements Screen {
     private int gold = 100;
     private int maxHp = 100, maxMana = 50;
 
+    private Label goldDisplayLabel;
+
     public GameScreen(KnightGame game) {
         this.game = game;
     }
@@ -46,20 +48,21 @@ public class GameScreen implements Screen {
     public void show() {
         batch = new SpriteBatch();
         backgroundTexture = new Texture(Gdx.files.internal("background.png"));
-        knightTexture = new Texture(Gdx.files.internal("knight.png"));
+        knightTexture    = new Texture(Gdx.files.internal("knight.png"));
 
-        groundY = 0;
+        groundY   = 0;
         velocityY = 0;
         x = Gdx.graphics.getWidth() / 2f - knightTexture.getWidth() / 2f;
         y = groundY;
 
         uiStage = new Stage(new ScreenViewport());
-        skin = new Skin(Gdx.files.internal("uiskin.json"));
+        skin    = new Skin(Gdx.files.internal("uiskin.json"));
         Gdx.input.setInputProcessor(uiStage);
 
         createPauseMenu();
         createInventory();
         createShop();
+        createHUD();
     }
 
 
@@ -150,7 +153,7 @@ public class GameScreen implements Screen {
             @Override
             public void clicked(InputEvent event, float x, float y) {
                 shopOpen = false;
-                paused = false;
+                paused   = false;
             }
         });
         content.add(close).colspan(2).padTop(15);
@@ -167,6 +170,7 @@ public class GameScreen implements Screen {
                 if (gold >= cost) {
                     gold -= cost;
                     goldLabel.setText("Gold: " + gold);
+                    goldDisplayLabel.setText("Gold: " + gold);
                     purchase.run();
                 }
             }
@@ -175,33 +179,40 @@ public class GameScreen implements Screen {
         table.add(buyBtn).right().pad(5).row();
     }
 
+    private void createHUD() {
+        goldDisplayLabel = new Label("Gold: " + gold, skin);
+        Table hudTable = new Table(skin);
+        hudTable.setFillParent(true);
+        hudTable.top().left();
+        hudTable.add(goldDisplayLabel).pad(10);
+        uiStage.addActor(hudTable);
+    }
+
 
     @Override
     public void render(float delta) {
         if (Gdx.input.isKeyJustPressed(Input.Keys.ESCAPE)) {
             if (shopOpen) {
                 shopOpen = false;
-                paused = false;
+                paused   = false;
             } else if (inventoryOpen) {
                 inventoryOpen = false;
-                paused = false;
+                paused        = false;
             } else {
                 paused = !paused;
-                if (paused) {
-                    inventoryOpen = shopOpen = false;
-                }
+                if (paused) inventoryOpen = shopOpen = false;
             }
         }
 
         if (Gdx.input.isKeyJustPressed(Input.Keys.I)) {
             inventoryOpen = !inventoryOpen;
-            shopOpen = false;
-            paused = inventoryOpen;
+            shopOpen      = false;
+            paused        = inventoryOpen;
         }
         if (Gdx.input.isKeyJustPressed(Input.Keys.Z)) {
-            shopOpen = true;
+            shopOpen      = true;
             inventoryOpen = false;
-            paused = true;
+            paused        = true;
         }
 
         ScreenUtils.clear(0, 0, 0, 1);
@@ -214,9 +225,9 @@ public class GameScreen implements Screen {
                 velocityY = jumpVelocity;
             }
             velocityY -= gravity * delta;
-            y += velocityY * delta;
+            y         += velocityY * delta;
             if (y < groundY) {
-                y = groundY;
+                y         = groundY;
                 velocityY = 0;
             }
         }
@@ -241,9 +252,7 @@ public class GameScreen implements Screen {
 
     @Override public void pause() {}
     @Override public void resume() {}
-    @Override public void hide() {
-        dispose();
-    }
+    @Override public void hide() { dispose(); }
 
     @Override
     public void dispose() {
