@@ -3,6 +3,8 @@ package com.knightgame.screens;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.Screen;
 import com.badlogic.gdx.graphics.GL20;
+import com.badlogic.gdx.graphics.Texture;
+import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.scenes.scene2d.InputEvent;
 import com.badlogic.gdx.scenes.scene2d.Stage;
 import com.badlogic.gdx.scenes.scene2d.ui.Skin;
@@ -16,6 +18,8 @@ public class MainMenuScreen implements Screen {
     private final KnightGame game;
     private Stage stage;
     private Skin skin;
+    private Texture background;
+    private SpriteBatch batch;
 
     public MainMenuScreen(KnightGame game) {
         this.game = game;
@@ -23,6 +27,9 @@ public class MainMenuScreen implements Screen {
 
     @Override
     public void show() {
+        batch = new SpriteBatch();
+        background = new Texture("background_menu.png");
+
         stage = new Stage(new ScreenViewport());
         Gdx.input.setInputProcessor(stage);
 
@@ -53,7 +60,6 @@ public class MainMenuScreen implements Screen {
         btnSettings.addListener(new ClickListener() {
             @Override
             public void clicked(InputEvent event, float x, float y) {
-                // Перехід до екрану налаштувань
                game.setScreen(new SettingsScreen(game));
             }
         });
@@ -62,7 +68,6 @@ public class MainMenuScreen implements Screen {
         btnExit.addListener(new ClickListener() {
             @Override
             public void clicked(InputEvent event, float x, float y) {
-                // Вихід з гри
                 Gdx.app.exit();
             }
         });
@@ -77,6 +82,10 @@ public class MainMenuScreen implements Screen {
     public void render(float delta) {
         Gdx.gl.glClearColor(0f, 0f, 0f, 1f);
         Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT);
+        batch.begin();
+        batch.draw(background, 0, 0,
+            Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
+        batch.end();
         stage.act(delta);
         stage.draw();
     }
