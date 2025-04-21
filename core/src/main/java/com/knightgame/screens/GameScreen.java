@@ -9,6 +9,7 @@ import com.badlogic.gdx.scenes.scene2d.InputEvent;
 import com.badlogic.gdx.scenes.scene2d.Stage;
 import com.badlogic.gdx.scenes.scene2d.Touchable;
 import com.badlogic.gdx.scenes.scene2d.ui.Label;
+import com.badlogic.gdx.scenes.scene2d.ui.ProgressBar;
 import com.badlogic.gdx.scenes.scene2d.ui.Skin;
 import com.badlogic.gdx.scenes.scene2d.ui.Table;
 import com.badlogic.gdx.scenes.scene2d.ui.TextButton;
@@ -21,8 +22,7 @@ import com.knightgame.KnightGame;
 public class GameScreen implements Screen {
     private final KnightGame game;
     private SpriteBatch batch;
-    private Texture knightTexture;
-    private Texture backgroundTexture;
+    private Texture knightTexture, backgroundTexture;
 
     private float x, y, velocityY;
     private final float speed = 200f, gravity = 1000f, jumpVelocity = 500f;
@@ -31,14 +31,17 @@ public class GameScreen implements Screen {
     private Stage uiStage;
     private Skin skin;
     private Table pauseMenu;
-    private Window inventoryWindow;
-    private Window shopWindow;
+    private Window inventoryWindow, shopWindow;
     private boolean paused, inventoryOpen, shopOpen;
 
+    private final int MAX_HP = 100;
+    private final int MAX_MANA = 100;
+    private int currentHp = MAX_HP;
+    private int currentMana = MAX_MANA;
     private int gold = 100;
-    private int maxHp = 100, maxMana = 50;
 
-    private Label goldDisplayLabel;
+    private ProgressBar hpBar, manaBar;
+    private Label hpValueLabel, manaValueLabel, goldDisplayLabel;
 
     public GameScreen(KnightGame game) {
         this.game = game;
@@ -50,7 +53,7 @@ public class GameScreen implements Screen {
         backgroundTexture = new Texture(Gdx.files.internal("background.png"));
         knightTexture    = new Texture(Gdx.files.internal("knight.png"));
 
-        groundY   = 0;
+        groundY = 0;
         velocityY = 0;
         x = Gdx.graphics.getWidth() / 2f - knightTexture.getWidth() / 2f;
         y = groundY;
@@ -65,7 +68,6 @@ public class GameScreen implements Screen {
         createHUD();
     }
 
-
     private void createPauseMenu() {
         pauseMenu = new Table(skin);
         pauseMenu.setFillParent(true);
@@ -74,8 +76,7 @@ public class GameScreen implements Screen {
 
         TextButton resume = new TextButton("Resume", skin);
         resume.addListener(new ClickListener() {
-            @Override
-            public void clicked(InputEvent event, float x, float y) {
+            @Override public void clicked(InputEvent event, float x, float y) {
                 paused = false;
                 inventoryOpen = shopOpen = false;
             }
@@ -83,16 +84,14 @@ public class GameScreen implements Screen {
 
         TextButton settings = new TextButton("Settings", skin);
         settings.addListener(new ClickListener() {
-            @Override
-            public void clicked(InputEvent event, float x, float y) {
+            @Override public void clicked(InputEvent event, float x, float y) {
                 game.setScreen(new SettingsScreen(game, GameScreen.this));
             }
         });
 
         TextButton exit = new TextButton("Exit to Menu", skin);
         exit.addListener(new ClickListener() {
-            @Override
-            public void clicked(InputEvent event, float x, float y) {
+            @Override public void clicked(InputEvent event, float x, float y) {
                 game.setScreen(new MainMenuScreen(game));
             }
         });
@@ -100,22 +99,20 @@ public class GameScreen implements Screen {
         pauseMenu.add(resume).pad(10).row();
         pauseMenu.add(settings).pad(10).row();
         pauseMenu.add(exit).pad(10);
-
         uiStage.addActor(pauseMenu);
     }
 
     private void createInventory() {
         inventoryWindow = new Window("Inventory", skin);
-        inventoryWindow.setSize(300, 300);
+        inventoryWindow.setSize(300,300);
         inventoryWindow.setPosition(
-            (Gdx.graphics.getWidth() - 300) / 2f,
-            (Gdx.graphics.getHeight() - 300) / 2f
+            (Gdx.graphics.getWidth()-300)/2f,
+            (Gdx.graphics.getHeight()-300)/2f
         );
         inventoryWindow.setVisible(false);
-
         Table grid = new Table(skin);
-        for (int r = 0; r < 4; r++) {
-            for (int c = 0; c < 4; c++) {
+        for(int r=0; r<4; r++){
+            for(int c=0; c<4; c++){
                 TextButton slot = new TextButton("", skin);
                 slot.setDisabled(true);
                 slot.setTouchable(Touchable.disabled);
@@ -124,16 +121,15 @@ public class GameScreen implements Screen {
             grid.row();
         }
         inventoryWindow.add(grid);
-
         uiStage.addActor(inventoryWindow);
     }
 
     private void createShop() {
         shopWindow = new Window("Shop", skin);
-        shopWindow.setSize(350, 380);
+        shopWindow.setSize(350,380);
         shopWindow.setPosition(
-            (Gdx.graphics.getWidth() - 350) / 2f,
-            (Gdx.graphics.getHeight() - 380) / 2f
+            (Gdx.graphics.getWidth()-350)/2f,
+            (Gdx.graphics.getHeight()-380)/2f
         );
         shopWindow.setVisible(false);
 
@@ -141,17 +137,21 @@ public class GameScreen implements Screen {
         Label goldLabel = new Label("Gold: " + gold, skin);
         content.add(goldLabel).colspan(2).padBottom(10).row();
 
-        addShopItem(content, goldLabel, "+20 Max HP", 25, () -> maxHp += 20);
-        addShopItem(content, goldLabel, "+20 Max Mana", 25, () -> maxMana += 20);
-        addShopItem(content, goldLabel, "New Sword", 50, () -> { /* give sword */ });
-        addShopItem(content, goldLabel, "Potion: Speed", 15, () -> { /* add speed pot */ });
-        addShopItem(content, goldLabel, "Potion: Heal", 15, () -> { /* add heal pot */ });
-        addShopItem(content, goldLabel, "Potion: Strength", 20, () -> { /* add dmg pot */ });
+        addShopItem(content, goldLabel, "+20 HP", 25, () -> {
+            currentHp = Math.min(currentHp + 20, MAX_HP);
+            hpBar.setValue(currentHp);
+            hpValueLabel.setText(currentHp + "/100");
+        });
+        addShopItem(content, goldLabel, "+20 Mana", 25, () -> {
+            currentMana = Math.min(currentMana + 20, MAX_MANA);
+            manaBar.setValue(currentMana);
+            manaValueLabel.setText(currentMana + "/100");
+        });
+        // ... інші предмети ...
 
         TextButton close = new TextButton("Close", skin);
-        close.addListener(new ClickListener() {
-            @Override
-            public void clicked(InputEvent event, float x, float y) {
+        close.addListener(new ClickListener(){
+            @Override public void clicked(InputEvent event, float x, float y) {
                 shopOpen = false;
                 paused   = false;
             }
@@ -164,10 +164,9 @@ public class GameScreen implements Screen {
 
     private void addShopItem(Table table, Label goldLabel, String name, int cost, Runnable purchase) {
         TextButton buyBtn = new TextButton("Buy (" + cost + ")", skin);
-        buyBtn.addListener(new ClickListener() {
-            @Override
-            public void clicked(InputEvent e, float x, float y) {
-                if (gold >= cost) {
+        buyBtn.addListener(new ClickListener(){
+            @Override public void clicked(InputEvent e, float x, float y){
+                if(gold >= cost) {
                     gold -= cost;
                     goldLabel.setText("Gold: " + gold);
                     goldDisplayLabel.setText("Gold: " + gold);
@@ -180,61 +179,72 @@ public class GameScreen implements Screen {
     }
 
     private void createHUD() {
-        goldDisplayLabel = new Label("Gold: " + gold, skin);
-        Table hudTable = new Table(skin);
-        hudTable.setFillParent(true);
-        hudTable.top().left();
-        hudTable.add(goldDisplayLabel).pad(10);
-        uiStage.addActor(hudTable);
-    }
+        hpBar   = new ProgressBar(1, MAX_HP, 1, false, skin);
+        manaBar = new ProgressBar(1, MAX_MANA, 1, false, skin);
+        hpBar.setValue(currentHp);
+        manaBar.setValue(currentMana);
 
+        hpValueLabel   = new Label(currentHp + "/100", skin);
+        manaValueLabel = new Label(currentMana + "/100", skin);
+        goldDisplayLabel = new Label("Gold: " + gold, skin);
+
+        Table hud = new Table(skin);
+        hud.setFillParent(true);
+        hud.top().left();
+
+        hud.add(new Label("HP:", skin)).pad(2);
+        hud.add(hpBar).width(150).height(20).pad(2);
+        hud.add(hpValueLabel).pad(2).row();
+
+        hud.add(new Label("Mana:", skin)).pad(2);
+        hud.add(manaBar).width(150).height(20).pad(2);
+        hud.add(manaValueLabel).pad(2).row();
+
+        hud.add(goldDisplayLabel).colspan(3).pad(2).row();
+
+        uiStage.addActor(hud);
+    }
 
     @Override
     public void render(float delta) {
-        if (Gdx.input.isKeyJustPressed(Input.Keys.ESCAPE)) {
-            if (shopOpen) {
-                shopOpen = false;
-                paused   = false;
-            } else if (inventoryOpen) {
-                inventoryOpen = false;
-                paused        = false;
+        if(Gdx.input.isKeyJustPressed(Input.Keys.ESCAPE)) {
+            if(shopOpen) {
+                shopOpen = false; paused = false;
+            } else if(inventoryOpen) {
+                inventoryOpen = false; paused = false;
             } else {
                 paused = !paused;
-                if (paused) inventoryOpen = shopOpen = false;
+                if(paused) inventoryOpen = shopOpen = false;
             }
         }
 
-        if (Gdx.input.isKeyJustPressed(Input.Keys.I)) {
+        if(Gdx.input.isKeyJustPressed(Input.Keys.I)) {
             inventoryOpen = !inventoryOpen;
-            shopOpen      = false;
-            paused        = inventoryOpen;
+            shopOpen = false;
+            paused = inventoryOpen;
         }
-        if (Gdx.input.isKeyJustPressed(Input.Keys.Z)) {
-            shopOpen      = true;
+        if(Gdx.input.isKeyJustPressed(Input.Keys.Z)) {
+            shopOpen = true;
             inventoryOpen = false;
-            paused        = true;
+            paused = true;
         }
 
-        ScreenUtils.clear(0, 0, 0, 1);
-
-        if (!paused) {
-            if (Gdx.input.isKeyPressed(Input.Keys.A)) x -= speed * delta;
-            if (Gdx.input.isKeyPressed(Input.Keys.D)) x += speed * delta;
-            if ((Gdx.input.isKeyJustPressed(Input.Keys.W) || Gdx.input.isKeyJustPressed(Input.Keys.SPACE))
+        ScreenUtils.clear(0,0,0,1);
+        if(!paused) {
+            if(Gdx.input.isKeyPressed(Input.Keys.A)) x -= speed * delta;
+            if(Gdx.input.isKeyPressed(Input.Keys.D)) x += speed * delta;
+            if((Gdx.input.isKeyJustPressed(Input.Keys.W)||Gdx.input.isKeyJustPressed(Input.Keys.SPACE))
                 && y <= groundY + 0.1f) {
                 velocityY = jumpVelocity;
             }
             velocityY -= gravity * delta;
-            y         += velocityY * delta;
-            if (y < groundY) {
-                y         = groundY;
-                velocityY = 0;
-            }
+            y += velocityY * delta;
+            if(y < groundY) { y = groundY; velocityY = 0; }
         }
 
         batch.begin();
-        batch.draw(backgroundTexture, 0, 0, Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
-        batch.draw(knightTexture, x, y);
+        batch.draw(backgroundTexture,0,0,Gdx.graphics.getWidth(),Gdx.graphics.getHeight());
+        batch.draw(knightTexture,x,y);
         batch.end();
 
         pauseMenu.setVisible(paused && !inventoryOpen && !shopOpen);
@@ -245,11 +255,7 @@ public class GameScreen implements Screen {
         uiStage.draw();
     }
 
-    @Override
-    public void resize(int width, int height) {
-        uiStage.getViewport().update(width, height, true);
-    }
-
+    @Override public void resize(int w,int h) { uiStage.getViewport().update(w,h,true); }
     @Override public void pause() {}
     @Override public void resume() {}
     @Override public void hide() { dispose(); }
