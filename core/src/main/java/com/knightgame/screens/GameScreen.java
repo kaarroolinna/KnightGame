@@ -16,12 +16,14 @@ import com.badlogic.gdx.scenes.scene2d.utils.TextureRegionDrawable;
 import com.badlogic.gdx.utils.ScreenUtils;
 import com.badlogic.gdx.utils.viewport.ScreenViewport;
 import com.knightgame.KnightGame;
+import com.knightgame.ui.DialogManager;
 
 public class GameScreen implements Screen {
 
     private final KnightGame game;
     private SpriteBatch batch;
     private Texture backgroundTexture;
+    private DialogManager dialog;
 
     private static final int FRAME_COLS = 3;
     private Texture knightRightSheet, knightLeftSheet;
@@ -77,7 +79,10 @@ public class GameScreen implements Screen {
 
         uiStage = new Stage(new ScreenViewport());
         skin    = new Skin(Gdx.files.internal("uiskin.json"));
+        dialog = new DialogManager(skin, uiStage);
         Gdx.input.setInputProcessor(uiStage);
+
+        dialog.showOnClick("Hello, knight!");
 
         createPauseMenu();
         createInventory();
@@ -314,6 +319,7 @@ public class GameScreen implements Screen {
 
         uiStage.act(delta);
         uiStage.draw();
+        dialog.updateAndDraw(delta);
     }
 
     //  lifecycle‑stub
@@ -332,6 +338,7 @@ public class GameScreen implements Screen {
         coinSheet.dispose();
         uiStage.dispose();
         skin.dispose();
+        dialog.dispose();
     }
 }
 
