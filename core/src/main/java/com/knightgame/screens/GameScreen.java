@@ -12,6 +12,7 @@ import com.badlogic.gdx.scenes.scene2d.Stage;
 import com.badlogic.gdx.scenes.scene2d.Touchable;
 import com.badlogic.gdx.scenes.scene2d.ui.*;
 import com.badlogic.gdx.scenes.scene2d.utils.ClickListener;
+import com.badlogic.gdx.scenes.scene2d.utils.TextureRegionDrawable;
 import com.badlogic.gdx.utils.ScreenUtils;
 import com.badlogic.gdx.utils.viewport.ScreenViewport;
 import com.knightgame.KnightGame;
@@ -27,6 +28,11 @@ public class GameScreen implements Screen {
     private Animation<TextureRegion> knightRightAnim, knightLeftAnim;
     private float stateTime;
     private boolean facingRight = true;
+
+    private Texture coinSheet;
+    private Animation<TextureRegion> coinAnim;
+    private float coinTime;
+    private Image coinImage;
 
     // Фізика
     private float x, y, velocityY;
@@ -59,6 +65,11 @@ public class GameScreen implements Screen {
         knightLeftAnim   = buildAnimation(knightLeftSheet);
         stateTime = 0f;
 
+        coinSheet  = new Texture("coin.png");
+        int coinCols = coinSheet.getWidth() / coinSheet.getHeight();
+        coinAnim   = buildAnim(coinSheet, coinCols);
+        coinTime   = 0f;
+
         groundY = 0;
         velocityY = 0;
         x = Gdx.graphics.getWidth() / 2f - knightRightSheet.getWidth() / FRAME_COLS / 2f;
@@ -72,6 +83,16 @@ public class GameScreen implements Screen {
         createInventory();
         createShop();
         createHUD();
+    }
+
+    private Animation<TextureRegion> buildAnim(Texture sheet, int cols) {
+        TextureRegion[][] tmp = TextureRegion.split(
+            sheet, sheet.getWidth() / cols, sheet.getHeight());
+        TextureRegion[] frames = new TextureRegion[cols];
+        for (int i=0;i<cols;i++) frames[i] = tmp[0][i];
+        Animation<TextureRegion> a = new Animation<>(0.15f, frames);
+        a.setPlayMode(Animation.PlayMode.LOOP);
+        return a;
     }
 
     private Animation<TextureRegion> buildAnimation(Texture sheet) {
@@ -211,7 +232,10 @@ public class GameScreen implements Screen {
 
         hpValueLabel   = new Label(currentHp   + "/100", skin);
         manaValueLabel = new Label(currentMana + "/100", skin);
-        goldDisplayLabel = new Label("Gold: " + gold, skin);
+        goldDisplayLabel = new Label(String.valueOf(gold), skin);
+
+        coinImage = new Image(new TextureRegionDrawable(coinAnim.getKeyFrame(0)));
+        coinImage.setSize(24,24);
 
         Table hud = new Table(skin);
         hud.setFillParent(true);
@@ -225,7 +249,9 @@ public class GameScreen implements Screen {
         hud.add(manaBar).width(150).height(20).pad(2);
         hud.add(manaValueLabel).pad(2).row();
 
-        hud.add(goldDisplayLabel).colspan(3).pad(2).row();
+        hud.add(coinImage).size(24).pad(2);
+        hud.add(new Label(String.valueOf(gold), skin))
+            .left().pad(2).row();
 
         uiStage.addActor(hud);
     }
@@ -262,7 +288,12 @@ public class GameScreen implements Screen {
             if (y < groundY) { y = groundY; velocityY = 0; }
 
             stateTime += delta;
+            coinTime += delta;
         }
+
+        coinImage.setDrawable(
+            new TextureRegionDrawable(coinAnim.getKeyFrame(coinTime))
+        );
 
         /* малювання */
         ScreenUtils.clear(0, 0, 0, 1);
@@ -298,6 +329,7 @@ public class GameScreen implements Screen {
         backgroundTexture.dispose();
         knightRightSheet.dispose();
         knightLeftSheet.dispose();
+        coinSheet.dispose();
         uiStage.dispose();
         skin.dispose();
     }
