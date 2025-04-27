@@ -21,16 +21,17 @@ public class GameScreen implements Screen {
     private final KnightGame game;
     private SpriteBatch batch;
     private Texture backgroundTexture;
+    private Texture nextBackgroundTexture;
 
     private static final int ATTACK_FRAMES = 6;
-    private Texture attackRightSheet, attackLeftSheet;
-    private Animation<TextureRegion> attackRightAnim, attackLeftAnim;
-    private boolean attacking;
-    private float attackTime;
+    private static final int WALK_FRAMES   = 3;
 
-    private static final int WALK_FRAMES = 3;
     private Texture knightRightSheet, knightLeftSheet;
     private Animation<TextureRegion> knightRightAnim, knightLeftAnim;
+    private Texture attackRightSheet,  attackLeftSheet;
+    private Animation<TextureRegion> attackRightAnim,  attackLeftAnim;
+    private boolean attacking;
+    private float attackTime;
     private float stateTime;
     private boolean facingRight;
 
@@ -48,11 +49,11 @@ public class GameScreen implements Screen {
     private Table pauseMenu;
     private Window inventoryWindow, shopWindow;
     private boolean paused, inventoryOpen, shopOpen;
+    private ProgressBar hpBar, manaBar;
+    private Label hpValueLabel, manaValueLabel, goldDisplayLabel;
 
     private final int MAX_HP = 100, MAX_MANA = 100;
     private int currentHp = MAX_HP, currentMana = MAX_MANA, gold = 100;
-    private ProgressBar hpBar, manaBar;
-    private Label hpValueLabel, manaValueLabel, goldDisplayLabel;
 
     private DialogManager dialog;
 
@@ -61,10 +62,14 @@ public class GameScreen implements Screen {
     private boolean monsterAlive;
     private int     monsterHp;
     private final float monsterSpeed = 250f;
+    private final float attackRange  = 50f;
 
-    private final float attackRange = 50f;
-    private float monsterDamageCooldown = 0f;
+    private float monsterDamageCooldown;
     private static final float DAMAGE_COOLDOWN_TIME = 1f;
+
+    private enum State { PLAYING, LEVEL_OUT, LEVEL_IN }
+    private State state = State.PLAYING;
+    private final float transitionSpeed = 200f;
 
     public GameScreen(KnightGame game) {
         this.game = game;
@@ -73,7 +78,8 @@ public class GameScreen implements Screen {
     @Override
     public void show() {
         batch = new SpriteBatch();
-        backgroundTexture = new Texture("background.png");
+        backgroundTexture     = new Texture("background.png");
+        nextBackgroundTexture = new Texture("background_1.png");
 
         knightRightSheet = new Texture("knightAnimationRight.png");
         knightLeftSheet  = new Texture("knightAnimationLeft.png");
@@ -114,7 +120,8 @@ public class GameScreen implements Screen {
             "Inventory - I",
             "Shop - Z",
             "Attack - E",
-            "Try to kill the first monster!"
+            "Try to kill the first monster!",
+            "Defeat him to proceed"
         );
 
         createPauseMenu();
@@ -124,18 +131,11 @@ public class GameScreen implements Screen {
     }
 
     private Animation<TextureRegion> splitAnimation(Texture sheet, int cols, float frameDuration, boolean loop) {
-        TextureRegion[][] tmp = TextureRegion.split(
-            sheet,
-            sheet.getWidth()/cols,
-            sheet.getHeight()
-        );
+        TextureRegion[][] tmp = TextureRegion.split(sheet, sheet.getWidth()/cols, sheet.getHeight());
         TextureRegion[] frames = new TextureRegion[cols];
         System.arraycopy(tmp[0], 0, frames, 0, cols);
         Animation<TextureRegion> anim = new Animation<>(frameDuration, frames);
-        anim.setPlayMode(loop
-            ? Animation.PlayMode.LOOP
-            : Animation.PlayMode.NORMAL
-        );
+        anim.setPlayMode(loop ? Animation.PlayMode.LOOP : Animation.PlayMode.NORMAL);
         return anim;
     }
 
@@ -156,8 +156,7 @@ public class GameScreen implements Screen {
         TextButton resume = new TextButton("Resume", skin);
         resume.addListener(new ClickListener(){
             @Override public void clicked(InputEvent e, float x, float y){
-                paused = false;
-                inventoryOpen = shopOpen = false;
+                paused = false; inventoryOpen = shopOpen = false;
             }
         });
         TextButton settings = new TextButton("Settings", skin);
@@ -169,7 +168,7 @@ public class GameScreen implements Screen {
         TextButton exit = new TextButton("Exit", skin);
         exit.addListener(new ClickListener(){
             @Override public void clicked(InputEvent e, float x, float y){
-                game.setScreen(new MainMenuScreen(game));
+                Gdx.app.exit();
             }
         });
 
@@ -182,21 +181,12 @@ public class GameScreen implements Screen {
     private void createInventory() {
         inventoryWindow = new Window("Inventory", skin);
         inventoryWindow.setSize(300,300);
-        inventoryWindow.setPosition(
-            (Gdx.graphics.getWidth()-300)/2f,
-            (Gdx.graphics.getHeight()-300)/2f
-        );
+        inventoryWindow.setPosition((Gdx.graphics.getWidth()-300)/2f, (Gdx.graphics.getHeight()-300)/2f);
         inventoryWindow.setVisible(false);
-
         Table grid = new Table(skin);
         for(int r=0; r<4; r++){
-            for(int c=0; c<4; c++){
-                TextButton slot = new TextButton("", skin);
-                slot.setDisabled(true);
-                slot.setTouchable(Touchable.disabled);
-                grid.add(slot).size(60).pad(5);
-            }
-            grid.row();
+            for(int c=0; c<4; c++){ TextButton slot = new TextButton("", skin); slot.setDisabled(true);
+                slot.setTouchable(Touchable.disabled); grid.add(slot).size(60).pad(5);} grid.row();
         }
         inventoryWindow.add(grid);
         uiStage.addActor(inventoryWindow);
@@ -205,36 +195,28 @@ public class GameScreen implements Screen {
     private void createShop() {
         shopWindow = new Window("Shop", skin);
         shopWindow.setSize(350,380);
-        shopWindow.setPosition(
-            (Gdx.graphics.getWidth()-350)/2f,
-            (Gdx.graphics.getHeight()-380)/2f
-        );
+        shopWindow.setPosition((Gdx.graphics.getWidth()-350)/2f, (Gdx.graphics.getHeight()-380)/2f);
         shopWindow.setVisible(false);
-
         Table content = new Table(skin);
         Label goldLabel = new Label("Gold: " + gold, skin);
         content.add(goldLabel).colspan(2).padBottom(10).row();
-
-        addShopItem(content, goldLabel, "+20 HP",   25, () -> {
-            currentHp = Math.min(currentHp + 20, MAX_HP);
+        addShopItem(content, goldLabel, "+20 HP", 25, () -> {
+            currentHp = Math.min(currentHp+20, MAX_HP);
             hpBar.setValue(currentHp);
-            hpValueLabel.setText(currentHp + "/100");
+            hpValueLabel.setText(currentHp+"/100");
         });
         addShopItem(content, goldLabel, "+20 Mana", 25, () -> {
-            currentMana = Math.min(currentMana + 20, MAX_MANA);
+            currentMana = Math.min(currentMana+20, MAX_MANA);
             manaBar.setValue(currentMana);
-            manaValueLabel.setText(currentMana + "/100");
+            manaValueLabel.setText(currentMana+"/100");
         });
-
         TextButton close = new TextButton("Close", skin);
         close.addListener(new ClickListener(){
             @Override public void clicked(InputEvent e, float x, float y){
-                shopOpen = false;
-                paused   = false;
+                shopOpen=false; paused=false;
             }
         });
         content.add(close).colspan(2).padTop(15);
-
         shopWindow.add(content).pad(10);
         uiStage.addActor(shopWindow);
     }
@@ -243,10 +225,8 @@ public class GameScreen implements Screen {
         TextButton buyBtn = new TextButton("Buy ("+cost+")", skin);
         buyBtn.addListener(new ClickListener(){
             @Override public void clicked(InputEvent e, float x, float y){
-                if (gold >= cost) {
-                    gold -= cost;
-                    goldLabel.setText("Gold: " + gold);
-                    goldDisplayLabel.setText(""+gold);
+                if(gold>=cost){ gold-=cost; goldLabel.setText("Gold: "+gold);
+                    goldDisplayLabel.setText("Gold: "+gold);
                     purchase.run();
                 }
             }
@@ -256,161 +236,149 @@ public class GameScreen implements Screen {
     }
 
     private void createHUD() {
-        hpBar   = new ProgressBar(1, MAX_HP,   1, false, skin);
-        manaBar = new ProgressBar(1, MAX_MANA, 1, false, skin);
+        hpBar   = new ProgressBar(1,MAX_HP,1,false,skin);
+        manaBar = new ProgressBar(1,MAX_MANA,1,false,skin);
         hpBar.setValue(currentHp);
         manaBar.setValue(currentMana);
-
-        hpValueLabel   = new Label(currentHp + "/100", skin);
-        manaValueLabel = new Label(currentMana + "/100", skin);
-
-        goldDisplayLabel = new Label("Gold: " + gold, skin);
-
+        hpValueLabel = new Label(currentHp+"/100", skin);
+        manaValueLabel = new Label(currentMana+"/100", skin);
+        goldDisplayLabel = new Label("Gold: "+gold, skin);
         Table hud = new Table(skin);
         hud.setFillParent(true);
         hud.top().left();
-
-        hud.add(new Label("HP:", skin)).pad(2);
-        hud.add(hpBar)        .width(150).height(20).pad(2);
+        hud.add(new Label("HP:",skin)).pad(2);
+        hud.add(hpBar).width(150).height(20).pad(2);
         hud.add(hpValueLabel).pad(2).row();
-
-        hud.add(new Label("Mana:", skin)).pad(2);
-        hud.add(manaBar)        .width(150).height(20).pad(2);
+        hud.add(new Label("Mana:",skin)).pad(2);
+        hud.add(manaBar).width(150).height(20).pad(2);
         hud.add(manaValueLabel).pad(2).row();
-
-        hud.add(coinImage)         .size(24).pad(2);
-        hud.add(goldDisplayLabel)  .left().pad(2).row();
-
+        hud.add(coinImage).size(24).pad(2);
+        hud.add(goldDisplayLabel).left().pad(2).row();
         uiStage.addActor(hud);
     }
 
     @Override
     public void render(float delta) {
+        // Cooldown
         monsterDamageCooldown = Math.max(0f, monsterDamageCooldown - delta);
-        if (Gdx.input.isKeyJustPressed(Input.Keys.ESCAPE)) {
-            if      (shopOpen)      { shopOpen      = false; paused = false; }
-            else if (inventoryOpen) { inventoryOpen = false; paused = false; }
-            else                   { paused = !paused; if (paused) inventoryOpen = shopOpen = false; }
-        }
-        if (Gdx.input.isKeyJustPressed(Input.Keys.I)) {
-            inventoryOpen = !inventoryOpen; shopOpen = false; paused = inventoryOpen;
-        }
-        if (Gdx.input.isKeyJustPressed(Input.Keys.Z)) {
-            shopOpen = true; inventoryOpen = false; paused = true;
-        }
 
-        if (!attacking && monsterAlive && Gdx.input.isKeyJustPressed(Input.Keys.E)) {
-            attacking  = true;
-            attackTime = 0f;
-
-            TextureRegion curr = facingRight
-                ? knightRightAnim.getKeyFrame(stateTime)
-                : knightLeftAnim .getKeyFrame(stateTime);
-            float fw = curr.getRegionWidth(), fh = curr.getRegionHeight();
-            float hitX = facingRight ? x + fw : x - attackRange;
-            Rectangle hitBox = new Rectangle(hitX, y, attackRange, fh);
-            Rectangle mBox   = new Rectangle(monsterX, monsterY,
-                monsterTex.getWidth(),
-                monsterTex.getHeight());
-            if (hitBox.overlaps(mBox)) {
-                monsterHp -= 10;
-                if (monsterHp <= 0) {
-                    monsterAlive = false;
+        switch(state) {
+            case LEVEL_OUT:
+                x += transitionSpeed * delta;
+                if(x > Gdx.graphics.getWidth()) {
+                    state = State.LEVEL_IN;
+                    backgroundTexture = nextBackgroundTexture;
+                    x = -knightRightSheet.getWidth()/WALK_FRAMES;
                 }
-            }
-        }
-
-        if (!paused) {
-            if (attacking) {
-                attackTime += delta;
-                boolean done = facingRight
-                    ? attackRightAnim.isAnimationFinished(attackTime)
-                    : attackLeftAnim .isAnimationFinished(attackTime);
-                if (done) {
-                    attacking  = false;
-                    attackTime = 0f;
+                break;
+            case LEVEL_IN:
+                x += transitionSpeed * delta;
+                if(x >= Gdx.graphics.getWidth()/2f - knightRightSheet.getWidth()/WALK_FRAMES/2f) {
+                    state = State.PLAYING;
+                    paused = false;
                 }
-            } else {
-                if (Gdx.input.isKeyPressed(Input.Keys.A)) { x -= speed*delta; facingRight = false; }
-                if (Gdx.input.isKeyPressed(Input.Keys.D)) { x += speed*delta; facingRight = true;  }
-                if ((Gdx.input.isKeyJustPressed(Input.Keys.W) || Gdx.input.isKeyJustPressed(Input.Keys.SPACE))
-                    && y <= groundY + 0.1f) {
-                    velocityY = jumpVelocity;
+                break;
+            default:
+                if(Gdx.input.isKeyJustPressed(Input.Keys.ESCAPE)) {
+                    if(shopOpen) { shopOpen=false; paused=false; }
+                    else if(inventoryOpen) { inventoryOpen=false; paused=false; }
+                    else { paused=!paused; if(paused) inventoryOpen=shopOpen=false; }
                 }
-                velocityY -= gravity*delta;
-                y += velocityY*delta;
-                if (y < groundY) { y = groundY; velocityY = 0; }
-
-                stateTime += delta;
-                coinTime  += delta;
-            }
+                if(Gdx.input.isKeyJustPressed(Input.Keys.I)) {
+                    inventoryOpen=!inventoryOpen; shopOpen=false; paused=inventoryOpen;
+                }
+                if(Gdx.input.isKeyJustPressed(Input.Keys.Z)) {
+                    shopOpen=true; inventoryOpen=false; paused=true;
+                }
+                if(!attacking && monsterAlive && Gdx.input.isKeyJustPressed(Input.Keys.E) && state==State.PLAYING) {
+                    attacking=true; attackTime=0f;
+                    TextureRegion curr = facingRight ? knightRightAnim.getKeyFrame(stateTime) : knightLeftAnim.getKeyFrame(stateTime);
+                    float fw=curr.getRegionWidth(), fh=curr.getRegionHeight();
+                    float hitX = facingRight ? x+fw : x-attackRange;
+                    Rectangle hitBox = new Rectangle(hitX, y, attackRange, fh);
+                    Rectangle mBox = new Rectangle(monsterX, monsterY, monsterTex.getWidth(), monsterTex.getHeight());
+                    if(hitBox.overlaps(mBox)) {
+                        monsterHp-=10;
+                        if(monsterHp<=0) {
+                            monsterAlive=false;
+                            state=State.LEVEL_OUT;
+                            paused=true;
+                        }
+                    }
+                }
+                if(!paused) {
+                    if(attacking) {
+                        attackTime+=delta;
+                        boolean done = facingRight
+                            ? attackRightAnim.isAnimationFinished(attackTime)
+                            : attackLeftAnim .isAnimationFinished(attackTime);
+                        if(done) { attacking=false; attackTime=0f; }
+                    } else {
+                        if(Gdx.input.isKeyPressed(Input.Keys.A)) { x-=speed*delta; facingRight=false; }
+                        if(Gdx.input.isKeyPressed(Input.Keys.D)) { x+=speed*delta; facingRight=true; }
+                        if((Gdx.input.isKeyJustPressed(Input.Keys.W) || Gdx.input.isKeyJustPressed(Input.Keys.SPACE)) && y<=groundY+0.1f) {
+                            velocityY=jumpVelocity;
+                        }
+                        velocityY-=gravity*delta;
+                        y+=velocityY*delta;
+                        if(y<groundY) { y=groundY; velocityY=0; }
+                        stateTime+=delta;
+                        coinTime+=delta;
+                    }
+                }
         }
 
         ScreenUtils.clear(0,0,0,1);
         batch.begin();
-
-        batch.draw(backgroundTexture, 0, 0,
-            Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
-
+        batch.draw(backgroundTexture,0,0,Gdx.graphics.getWidth(),Gdx.graphics.getHeight());
         TextureRegion heroFrame = attacking
-            ? (facingRight
-            ? attackRightAnim.getKeyFrame(attackTime)
-            : attackLeftAnim .getKeyFrame(attackTime))
-            : (facingRight
-            ? knightRightAnim.getKeyFrame(stateTime)
-            : knightLeftAnim .getKeyFrame(stateTime));
+            ? (facingRight ? attackRightAnim.getKeyFrame(attackTime) : attackLeftAnim.getKeyFrame(attackTime))
+            : (facingRight ? knightRightAnim.getKeyFrame(stateTime) : knightLeftAnim.getKeyFrame(stateTime));
         batch.draw(heroFrame, x, y);
 
-        if (monsterAlive) {
-            if (monsterX > x) monsterX -= monsterSpeed * delta;
-            else              monsterX += monsterSpeed * delta;
-
+        if(state==State.PLAYING && monsterAlive) {
+            if(monsterX>x) monsterX-=monsterSpeed*delta; else monsterX+=monsterSpeed*delta;
             batch.draw(monsterTex, monsterX, monsterY);
-
-            Rectangle heroRect = new Rectangle(
-                x, y,
-                heroFrame.getRegionWidth(),
-                heroFrame.getRegionHeight()
-            );
-            Rectangle mRect = new Rectangle(
-                monsterX, monsterY,
-                monsterTex.getWidth(),
-                monsterTex.getHeight()
-            );
-            if (monsterAlive && mRect.overlaps(heroRect) && monsterDamageCooldown <= 0f) {
-                currentHp = Math.max(0, currentHp - 1);
+            Rectangle heroRect=new Rectangle(x,y,heroFrame.getRegionWidth(),heroFrame.getRegionHeight());
+            Rectangle mRect=new Rectangle(monsterX,monsterY,monsterTex.getWidth(),monsterTex.getHeight());
+            if(mRect.overlaps(heroRect)&&monsterDamageCooldown<=0f) {
+                currentHp=Math.max(0,currentHp-1);
                 hpBar.setValue(currentHp);
-                hpValueLabel.setText(currentHp + "/100");
-
-                monsterDamageCooldown = DAMAGE_COOLDOWN_TIME;
+                hpValueLabel.setText(currentHp+"/100");
+                monsterDamageCooldown=DAMAGE_COOLDOWN_TIME;
             }
         }
 
         batch.end();
 
-        pauseMenu    .setVisible(paused && !inventoryOpen && !shopOpen);
-        inventoryWindow.setVisible(inventoryOpen);
-        shopWindow    .setVisible(shopOpen);
-
-        uiStage.act(delta);
-        uiStage.draw();
-        dialog.updateAndDraw(delta);
+        if(state==State.PLAYING) {
+            pauseMenu.setVisible(paused && !inventoryOpen && !shopOpen);
+            inventoryWindow.setVisible(inventoryOpen);
+            shopWindow.setVisible(shopOpen);
+            uiStage.act(delta);
+            uiStage.draw();
+            dialog.updateAndDraw(delta);
+        }
     }
 
-
-    @Override public void resize(int w, int h)  {
+    @Override public void resize(int w,int h){
         uiStage.getViewport().update(w,h,true);
     }
-    @Override public void pause()  { }
-    @Override public void resume() { }
-    @Override public void hide()   {
+    @Override public void pause(){
+
+    }
+    @Override public void resume(){
+
+    }
+    @Override public void hide(){
         dispose();
     }
 
     @Override
-    public void dispose() {
+    public void dispose(){
         batch.dispose();
         backgroundTexture.dispose();
+        nextBackgroundTexture.dispose();
         knightRightSheet.dispose();
         knightLeftSheet.dispose();
         attackRightSheet.dispose();
@@ -419,6 +387,6 @@ public class GameScreen implements Screen {
         uiStage.dispose();
         skin.dispose();
         dialog.dispose();
-        if (monsterTex != null) monsterTex.dispose();
+        if(monsterTex!=null) monsterTex.dispose();
     }
 }
