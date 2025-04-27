@@ -263,22 +263,23 @@ public class GameScreen implements Screen {
 
         hpValueLabel   = new Label(currentHp + "/100", skin);
         manaValueLabel = new Label(currentMana + "/100", skin);
-        goldDisplayLabel = new Label(""+gold, skin);
+
+        goldDisplayLabel = new Label("Gold: " + gold, skin);
 
         Table hud = new Table(skin);
         hud.setFillParent(true);
         hud.top().left();
 
         hud.add(new Label("HP:", skin)).pad(2);
-        hud.add(hpBar).width(150).height(20).pad(2);
+        hud.add(hpBar)        .width(150).height(20).pad(2);
         hud.add(hpValueLabel).pad(2).row();
 
         hud.add(new Label("Mana:", skin)).pad(2);
-        hud.add(manaBar).width(150).height(20).pad(2);
+        hud.add(manaBar)        .width(150).height(20).pad(2);
         hud.add(manaValueLabel).pad(2).row();
 
-        hud.add(coinImage).size(24).pad(2);
-        hud.add(new Label(""+gold, skin)).left().pad(2).row();
+        hud.add(coinImage)         .size(24).pad(2);
+        hud.add(goldDisplayLabel)  .left().pad(2).row();
 
         uiStage.addActor(hud);
     }
