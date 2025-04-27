@@ -4,9 +4,7 @@ import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.Input;
 import com.badlogic.gdx.Screen;
 import com.badlogic.gdx.graphics.Texture;
-import com.badlogic.gdx.graphics.g2d.Animation;
-import com.badlogic.gdx.graphics.g2d.SpriteBatch;
-import com.badlogic.gdx.graphics.g2d.TextureRegion;
+import com.badlogic.gdx.graphics.g2d.*;
 import com.badlogic.gdx.scenes.scene2d.InputEvent;
 import com.badlogic.gdx.scenes.scene2d.Stage;
 import com.badlogic.gdx.scenes.scene2d.Touchable;
@@ -19,69 +17,84 @@ import com.knightgame.KnightGame;
 import com.knightgame.ui.DialogManager;
 
 public class GameScreen implements Screen {
-
     private final KnightGame game;
     private SpriteBatch batch;
     private Texture backgroundTexture;
-    private DialogManager dialog;
 
-    private static final int FRAME_COLS = 3;
+    private static final int ATTACK_FRAMES = 6;
+    private Texture attackRightSheet, attackLeftSheet;
+    private Animation<TextureRegion> attackRightAnim, attackLeftAnim;
+    private boolean attacking;
+    private float attackTime;
+
+    private static final int WALK_FRAMES = 3;
     private Texture knightRightSheet, knightLeftSheet;
     private Animation<TextureRegion> knightRightAnim, knightLeftAnim;
     private float stateTime;
-    private boolean facingRight = true;
+    private boolean facingRight;
 
     private Texture coinSheet;
     private Animation<TextureRegion> coinAnim;
     private float coinTime;
     private Image coinImage;
 
-    // Фізика
     private float x, y, velocityY;
     private final float speed = 230f, gravity = 1250f, jumpVelocity = 700f;
     private float groundY;
 
-    // UI / HUD
     private Stage uiStage;
     private Skin skin;
-    private Table  pauseMenu;
+    private Table pauseMenu;
     private Window inventoryWindow, shopWindow;
     private boolean paused, inventoryOpen, shopOpen;
 
     private final int MAX_HP = 100, MAX_MANA = 100;
     private int currentHp = MAX_HP, currentMana = MAX_MANA, gold = 100;
-
     private ProgressBar hpBar, manaBar;
     private Label hpValueLabel, manaValueLabel, goldDisplayLabel;
 
-    public GameScreen(KnightGame game) { this.game = game; }
+    private DialogManager dialog;
+
+    public GameScreen(KnightGame game) {
+        this.game = game;
+    }
 
     @Override
     public void show() {
         batch = new SpriteBatch();
-        backgroundTexture = new Texture(Gdx.files.internal("background.png"));
+        backgroundTexture = new Texture("background.png");
 
-        knightRightSheet = new Texture(Gdx.files.internal("knightAnimationRight.png"));
-        knightLeftSheet  = new Texture(Gdx.files.internal("knightAnimationLeft.png"));
-        knightRightAnim  = buildAnimation(knightRightSheet);
-        knightLeftAnim   = buildAnimation(knightLeftSheet);
+        knightRightSheet = new Texture("knightAnimationRight.png");
+        knightLeftSheet  = new Texture("knightAnimationLeft.png");
+        knightRightAnim  = splitAnimation(knightRightSheet, WALK_FRAMES, 0.2f, true);
+        knightLeftAnim   = splitAnimation(knightLeftSheet,  WALK_FRAMES, 0.2f, true);
         stateTime = 0f;
+        facingRight = true;
 
-        coinSheet  = new Texture("coin.png");
+        attackRightSheet = new Texture("Attack1 R.png");
+        attackLeftSheet  = new Texture("Attack1 L.png");
+        attackRightAnim  = splitAnimation(attackRightSheet, ATTACK_FRAMES, 0.1f, false);
+        attackLeftAnim   = splitAnimation(attackLeftSheet,  ATTACK_FRAMES, 0.1f, false);
+        attacking = false;
+        attackTime = 0f;
+
+        coinSheet = new Texture("coin.png");
         int coinCols = coinSheet.getWidth() / coinSheet.getHeight();
-        coinAnim   = buildAnim(coinSheet, coinCols);
-        coinTime   = 0f;
+        coinAnim = splitAnimation(coinSheet, coinCols, 0.15f, true);
+        coinTime = 0f;
+        coinImage = new Image(new TextureRegionDrawable(coinAnim.getKeyFrame(0)));
+        coinImage.setSize(24,24);
 
         groundY = 0;
         velocityY = 0;
-        x = Gdx.graphics.getWidth() / 2f - knightRightSheet.getWidth() / FRAME_COLS / 2f;
+        x = Gdx.graphics.getWidth()/2f - knightRightSheet.getWidth()/WALK_FRAMES/2f;
         y = groundY;
 
         uiStage = new Stage(new ScreenViewport());
         skin    = new Skin(Gdx.files.internal("uiskin.json"));
-        dialog = new DialogManager(skin, uiStage);
         Gdx.input.setInputProcessor(uiStage);
 
+        dialog = new DialogManager(skin, uiStage);
         dialog.showOnClick("Hello, knight!");
 
         createPauseMenu();
@@ -90,32 +103,22 @@ public class GameScreen implements Screen {
         createHUD();
     }
 
-    private Animation<TextureRegion> buildAnim(Texture sheet, int cols) {
-        TextureRegion[][] tmp = TextureRegion.split(
-            sheet, sheet.getWidth() / cols, sheet.getHeight());
-        TextureRegion[] frames = new TextureRegion[cols];
-        for (int i=0;i<cols;i++) frames[i] = tmp[0][i];
-        Animation<TextureRegion> a = new Animation<>(0.15f, frames);
-        a.setPlayMode(Animation.PlayMode.LOOP);
-        return a;
-    }
-
-    private Animation<TextureRegion> buildAnimation(Texture sheet) {
+    private Animation<TextureRegion> splitAnimation(Texture sheet, int cols, float frameDuration, boolean loop) {
         TextureRegion[][] tmp = TextureRegion.split(
             sheet,
-            sheet.getWidth()  / FRAME_COLS,
-            sheet.getHeight() / 1);
-
-        TextureRegion[] frames = new TextureRegion[FRAME_COLS];
-        for (int i = 0; i < FRAME_COLS; i++) frames[i] = tmp[0][i];
-
-        Animation<TextureRegion> anim = new Animation<>(1f, frames);
-        anim.setPlayMode(Animation.PlayMode.LOOP);
+            sheet.getWidth()/cols,
+            sheet.getHeight()
+        );
+        TextureRegion[] frames = new TextureRegion[cols];
+        System.arraycopy(tmp[0], 0, frames, 0, cols);
+        Animation<TextureRegion> anim = new Animation<>(frameDuration, frames);
+        anim.setPlayMode(loop
+            ? Animation.PlayMode.LOOP
+            : Animation.PlayMode.NORMAL
+        );
         return anim;
     }
 
-//             UI-білдери
-    /** Пауза */
     private void createPauseMenu() {
         pauseMenu = new Table(skin);
         pauseMenu.setFillParent(true);
@@ -123,23 +126,21 @@ public class GameScreen implements Screen {
         pauseMenu.setVisible(false);
 
         TextButton resume = new TextButton("Resume", skin);
-        resume.addListener(new ClickListener() {
-            @Override public void clicked(InputEvent event,float x,float y) {
+        resume.addListener(new ClickListener(){
+            @Override public void clicked(InputEvent e, float x, float y){
                 paused = false;
                 inventoryOpen = shopOpen = false;
             }
         });
-
         TextButton settings = new TextButton("Settings", skin);
-        settings.addListener(new ClickListener() {
-            @Override public void clicked(InputEvent event,float x,float y) {
+        settings.addListener(new ClickListener(){
+            @Override public void clicked(InputEvent e, float x, float y){
                 game.setScreen(new SettingsScreen(game, GameScreen.this));
             }
         });
-
-        TextButton exit = new TextButton("Exit to Menu", skin);
-        exit.addListener(new ClickListener() {
-            @Override public void clicked(InputEvent event,float x,float y) {
+        TextButton exit = new TextButton("Exit", skin);
+        exit.addListener(new ClickListener(){
+            @Override public void clicked(InputEvent e, float x, float y){
                 game.setScreen(new MainMenuScreen(game));
             }
         });
@@ -150,18 +151,18 @@ public class GameScreen implements Screen {
         uiStage.addActor(pauseMenu);
     }
 
-    /** Інвентар */
     private void createInventory() {
         inventoryWindow = new Window("Inventory", skin);
-        inventoryWindow.setSize(300, 300);
+        inventoryWindow.setSize(300,300);
         inventoryWindow.setPosition(
-            (Gdx.graphics.getWidth()  - 300) / 2f,
-            (Gdx.graphics.getHeight() - 300) / 2f);
+            (Gdx.graphics.getWidth()-300)/2f,
+            (Gdx.graphics.getHeight()-300)/2f
+        );
         inventoryWindow.setVisible(false);
 
         Table grid = new Table(skin);
-        for (int r = 0; r < 4; r++) {
-            for (int c = 0; c < 4; c++) {
+        for(int r=0; r<4; r++){
+            for(int c=0; c<4; c++){
                 TextButton slot = new TextButton("", skin);
                 slot.setDisabled(true);
                 slot.setTouchable(Touchable.disabled);
@@ -173,13 +174,13 @@ public class GameScreen implements Screen {
         uiStage.addActor(inventoryWindow);
     }
 
-    /** Крамниця */
     private void createShop() {
         shopWindow = new Window("Shop", skin);
-        shopWindow.setSize(350, 380);
+        shopWindow.setSize(350,380);
         shopWindow.setPosition(
-            (Gdx.graphics.getWidth()  - 350) / 2f,
-            (Gdx.graphics.getHeight() - 380) / 2f);
+            (Gdx.graphics.getWidth()-350)/2f,
+            (Gdx.graphics.getHeight()-380)/2f
+        );
         shopWindow.setVisible(false);
 
         Table content = new Table(skin);
@@ -196,11 +197,10 @@ public class GameScreen implements Screen {
             manaBar.setValue(currentMana);
             manaValueLabel.setText(currentMana + "/100");
         });
-        // ... інші товари ...
 
         TextButton close = new TextButton("Close", skin);
-        close.addListener(new ClickListener() {
-            @Override public void clicked(InputEvent event,float x,float y) {
+        close.addListener(new ClickListener(){
+            @Override public void clicked(InputEvent e, float x, float y){
                 shopOpen = false;
                 paused   = false;
             }
@@ -211,15 +211,14 @@ public class GameScreen implements Screen {
         uiStage.addActor(shopWindow);
     }
 
-    private void addShopItem(Table table, Label goldLabel,
-                             String name,int cost,Runnable purchase) {
-        TextButton buyBtn = new TextButton("Buy (" + cost + ")", skin);
-        buyBtn.addListener(new ClickListener() {
-            @Override public void clicked(InputEvent e,float x,float y) {
+    private void addShopItem(Table table, Label goldLabel, String name, int cost, Runnable purchase) {
+        TextButton buyBtn = new TextButton("Buy ("+cost+")", skin);
+        buyBtn.addListener(new ClickListener(){
+            @Override public void clicked(InputEvent e, float x, float y){
                 if (gold >= cost) {
                     gold -= cost;
                     goldLabel.setText("Gold: " + gold);
-                    goldDisplayLabel.setText("Gold: " + gold);
+                    goldDisplayLabel.setText(""+gold);
                     purchase.run();
                 }
             }
@@ -228,19 +227,15 @@ public class GameScreen implements Screen {
         table.add(buyBtn).right().pad(5).row();
     }
 
-    /** HUD (HP, Mana, Gold) */
     private void createHUD() {
         hpBar   = new ProgressBar(1, MAX_HP,   1, false, skin);
         manaBar = new ProgressBar(1, MAX_MANA, 1, false, skin);
         hpBar.setValue(currentHp);
         manaBar.setValue(currentMana);
 
-        hpValueLabel   = new Label(currentHp   + "/100", skin);
+        hpValueLabel   = new Label(currentHp + "/100", skin);
         manaValueLabel = new Label(currentMana + "/100", skin);
-        goldDisplayLabel = new Label(String.valueOf(gold), skin);
-
-        coinImage = new Image(new TextureRegionDrawable(coinAnim.getKeyFrame(0)));
-        coinImage.setSize(24,24);
+        goldDisplayLabel = new Label(""+gold, skin);
 
         Table hud = new Table(skin);
         hud.setFillParent(true);
@@ -255,21 +250,17 @@ public class GameScreen implements Screen {
         hud.add(manaValueLabel).pad(2).row();
 
         hud.add(coinImage).size(24).pad(2);
-        hud.add(new Label(String.valueOf(gold), skin))
-            .left().pad(2).row();
+        hud.add(new Label(""+gold, skin)).left().pad(2).row();
 
         uiStage.addActor(hud);
     }
 
-    //  Render
     @Override
     public void render(float delta) {
-        /* гарячі клавіші UI */
         if (Gdx.input.isKeyJustPressed(Input.Keys.ESCAPE)) {
             if      (shopOpen)      { shopOpen      = false; paused = false; }
             else if (inventoryOpen) { inventoryOpen = false; paused = false; }
-            else                    { paused = !paused;
-                if (paused) inventoryOpen = shopOpen = false; }
+            else                   { paused = !paused; if (paused) inventoryOpen = shopOpen = false; }
         }
         if (Gdx.input.isKeyJustPressed(Input.Keys.I)) {
             inventoryOpen = !inventoryOpen; shopOpen = false; paused = inventoryOpen;
@@ -278,56 +269,67 @@ public class GameScreen implements Screen {
             shopOpen = true; inventoryOpen = false; paused = true;
         }
 
-        /* рух */
-        if (!paused) {
-            if (Gdx.input.isKeyPressed(Input.Keys.A)) { x -= speed * delta; facingRight = false; }
-            if (Gdx.input.isKeyPressed(Input.Keys.D)) { x += speed * delta; facingRight = true;  }
-            if ((Gdx.input.isKeyJustPressed(Input.Keys.W)
-                || Gdx.input.isKeyJustPressed(Input.Keys.SPACE))
-                && y <= groundY + 0.1f) {
-                velocityY = jumpVelocity;
-            }
-
-            velocityY -= gravity * delta;
-            y += velocityY * delta;
-            if (y < groundY) { y = groundY; velocityY = 0; }
-
-            stateTime += delta;
-            coinTime += delta;
+        if (!attacking && Gdx.input.isKeyJustPressed(Input.Keys.E)) {
+            attacking = true;
+            attackTime = 0f;
         }
 
-        coinImage.setDrawable(
-            new TextureRegionDrawable(coinAnim.getKeyFrame(coinTime))
-        );
+        if (!paused) {
+            if (attacking) {
+                attackTime += delta;
+            } else {
+                if (Gdx.input.isKeyPressed(Input.Keys.A)) { x -= speed*delta; facingRight = false; }
+                if (Gdx.input.isKeyPressed(Input.Keys.D)) { x += speed*delta; facingRight = true;  }
+                if ((Gdx.input.isKeyJustPressed(Input.Keys.W) || Gdx.input.isKeyJustPressed(Input.Keys.SPACE))
+                    && y <= groundY + 0.1f) {
+                    velocityY = jumpVelocity;
+                }
+                velocityY -= gravity*delta;
+                y += velocityY*delta;
+                if (y < groundY) { y = groundY; velocityY = 0; }
+                stateTime += delta;
+                coinTime += delta;
+            }
+        }
 
-        /* малювання */
-        ScreenUtils.clear(0, 0, 0, 1);
-
+        ScreenUtils.clear(0,0,0,1);
         batch.begin();
         batch.draw(backgroundTexture, 0, 0,
             Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
-
-        TextureRegion frame = facingRight
-            ? knightRightAnim.getKeyFrame(stateTime)
-            : knightLeftAnim .getKeyFrame(stateTime);
+        TextureRegion frame;
+        if (attacking) {
+            frame = facingRight
+                ? attackRightAnim.getKeyFrame(attackTime)
+                : attackLeftAnim .getKeyFrame(attackTime);
+            boolean done = facingRight
+                ? attackRightAnim.isAnimationFinished(attackTime)
+                : attackLeftAnim .isAnimationFinished(attackTime);
+            if (done) attacking = false;
+        } else {
+            frame = facingRight
+                ? knightRightAnim.getKeyFrame(stateTime)
+                : knightLeftAnim .getKeyFrame(stateTime);
+        }
         batch.draw(frame, x, y);
         batch.end();
 
-        pauseMenu     .setVisible(paused && !inventoryOpen && !shopOpen);
+        pauseMenu.setVisible(paused && !inventoryOpen && !shopOpen);
         inventoryWindow.setVisible(inventoryOpen);
-        shopWindow     .setVisible(shopOpen);
+        shopWindow.setVisible(shopOpen);
 
         uiStage.act(delta);
         uiStage.draw();
         dialog.updateAndDraw(delta);
     }
 
-    //  lifecycle‑stub
-
-    @Override public void resize(int w,int h) { uiStage.getViewport().update(w, h, true); }
-    @Override public void pause()  {}
-    @Override public void resume() {}
-    @Override public void hide()   { dispose(); }
+    @Override public void resize(int w, int h)  {
+        uiStage.getViewport().update(w,h,true);
+    }
+    @Override public void pause()  { }
+    @Override public void resume() { }
+    @Override public void hide()   {
+        dispose();
+    }
 
     @Override
     public void dispose() {
@@ -335,11 +337,11 @@ public class GameScreen implements Screen {
         backgroundTexture.dispose();
         knightRightSheet.dispose();
         knightLeftSheet.dispose();
+        attackRightSheet.dispose();
+        attackLeftSheet.dispose();
         coinSheet.dispose();
         uiStage.dispose();
         skin.dispose();
         dialog.dispose();
     }
 }
-
-
