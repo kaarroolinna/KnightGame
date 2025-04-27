@@ -120,8 +120,7 @@ public class GameScreen implements Screen {
             "Inventory - I",
             "Shop - Z",
             "Attack - E",
-            "Try to kill the first monster!",
-            "Defeat him to proceed"
+            "Try to kill the first monster!"
         );
 
         createPauseMenu();
@@ -290,19 +289,24 @@ public class GameScreen implements Screen {
                 if(Gdx.input.isKeyJustPressed(Input.Keys.Z)) {
                     shopOpen=true; inventoryOpen=false; paused=true;
                 }
-                if(!attacking && monsterAlive && Gdx.input.isKeyJustPressed(Input.Keys.E) && state==State.PLAYING) {
-                    attacking=true; attackTime=0f;
-                    TextureRegion curr = facingRight ? knightRightAnim.getKeyFrame(stateTime) : knightLeftAnim.getKeyFrame(stateTime);
-                    float fw=curr.getRegionWidth(), fh=curr.getRegionHeight();
-                    float hitX = facingRight ? x+fw : x-attackRange;
-                    Rectangle hitBox = new Rectangle(hitX, y, attackRange, fh);
-                    Rectangle mBox = new Rectangle(monsterX, monsterY, monsterTex.getWidth(), monsterTex.getHeight());
-                    if(hitBox.overlaps(mBox)) {
-                        monsterHp-=10;
-                        if(monsterHp<=0) {
-                            monsterAlive=false;
-                            state=State.LEVEL_OUT;
-                            paused=true;
+                if (!attacking && Gdx.input.isKeyJustPressed(Input.Keys.E) && state==State.PLAYING) {
+                attacking  = true;
+                attackTime = 0f;
+
+                TextureRegion curr = facingRight
+                    ? knightRightAnim.getKeyFrame(stateTime)
+                    : knightLeftAnim .getKeyFrame(stateTime);
+                float fw = curr.getRegionWidth(), fh = curr.getRegionHeight();
+                float hitX = facingRight ? x + fw : x - attackRange;
+                Rectangle hitBox = new Rectangle(hitX, y, attackRange, fh);
+                Rectangle mBox   = new Rectangle(monsterX, monsterY,
+                    monsterTex.getWidth(), monsterTex.getHeight());
+                    if (monsterAlive && hitBox.overlaps(mBox)) {
+                        monsterHp -= 10;
+                        if (monsterHp <= 0) {
+                            monsterAlive = false;
+                            state = State.LEVEL_OUT;
+                            paused = true;
                         }
                     }
                 }
