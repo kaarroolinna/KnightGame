@@ -95,7 +95,14 @@ public class GameScreen implements Screen {
         Gdx.input.setInputProcessor(uiStage);
 
         dialog = new DialogManager(skin, uiStage);
-        dialog.showOnClick("Hello, knight!");
+        dialog.showSequence(
+            "Hello, knight!",
+            "Let's start with the basics",
+            "Jump - Space",
+            "Inventory - I",
+            "Shop - Z",
+            "Attack - E"
+        );
 
         createPauseMenu();
         createInventory();
