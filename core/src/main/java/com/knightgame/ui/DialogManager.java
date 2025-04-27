@@ -16,6 +16,7 @@ public class DialogManager {
     private final Table dialogBox;
     private final Label dialogLabel;
     private java.util.Queue<String> messages;
+    private Runnable onComplete;
 
     public DialogManager(Skin skin, Stage uiStage) {
         this.stage = uiStage;
@@ -47,21 +48,32 @@ public class DialogManager {
         addOneClickListener();
     }
 
-    public void showSequence(String... texts) {
-        messages = new java.util.LinkedList<>();
-        for (String t : texts) messages.add(t);
+    public void showSequence(Runnable onComplete, String... messages) {
+        this.onComplete = onComplete;
+        this.messages = new java.util.LinkedList<>(java.util.Arrays.asList(messages));
         showNext();
     }
 
     private void showNext() {
-        if (messages == null || messages.isEmpty()) {
+        if (messages.isEmpty()) {
             dialogBox.setVisible(false);
+            if (onComplete != null) onComplete.run();
             return;
         }
-        String next = messages.poll();
-        dialogLabel.setText(next);
+        String text = messages.poll();
+        dialogLabel.setText(text);
         dialogBox.setVisible(true);
-        addOneClickListener();
+
+        ClickListener listener = new ClickListener() {
+            @Override
+            public boolean touchDown(InputEvent event, float x, float y, int p, int b) {
+                dialogBox.setVisible(false);
+                stage.removeListener(this);
+                showNext();
+                return true;
+            }
+        };
+        stage.addListener(listener);
     }
 
     private void addOneClickListener() {

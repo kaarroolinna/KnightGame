@@ -5,6 +5,7 @@ import com.badlogic.gdx.Input;
 import com.badlogic.gdx.Screen;
 import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.g2d.*;
+import com.badlogic.gdx.math.Rectangle;
 import com.badlogic.gdx.scenes.scene2d.InputEvent;
 import com.badlogic.gdx.scenes.scene2d.Stage;
 import com.badlogic.gdx.scenes.scene2d.Touchable;
@@ -55,6 +56,16 @@ public class GameScreen implements Screen {
 
     private DialogManager dialog;
 
+    private Texture monsterTex;
+    private float   monsterX, monsterY;
+    private boolean monsterAlive;
+    private int     monsterHp;
+    private final float monsterSpeed = 250f;
+
+    private final float attackRange = 50f;
+    private float monsterDamageCooldown = 0f;
+    private static final float DAMAGE_COOLDOWN_TIME = 1f;
+
     public GameScreen(KnightGame game) {
         this.game = game;
     }
@@ -96,12 +107,14 @@ public class GameScreen implements Screen {
 
         dialog = new DialogManager(skin, uiStage);
         dialog.showSequence(
+            () -> spawnMonster(),
             "Hello, knight!",
             "Let's start with the basics",
             "Jump - Space",
             "Inventory - I",
             "Shop - Z",
-            "Attack - E"
+            "Attack - E",
+            "Try to kill the first monster!"
         );
 
         createPauseMenu();
@@ -124,6 +137,14 @@ public class GameScreen implements Screen {
             : Animation.PlayMode.NORMAL
         );
         return anim;
+    }
+
+    private void spawnMonster() {
+        monsterTex   = new Texture("monster.png");
+        monsterX     = Gdx.graphics.getWidth();
+        monsterY     = groundY;
+        monsterAlive = true;
+        monsterHp    = 50;
     }
 
     private void createPauseMenu() {
@@ -264,6 +285,7 @@ public class GameScreen implements Screen {
 
     @Override
     public void render(float delta) {
+        monsterDamageCooldown = Math.max(0f, monsterDamageCooldown - delta);
         if (Gdx.input.isKeyJustPressed(Input.Keys.ESCAPE)) {
             if      (shopOpen)      { shopOpen      = false; paused = false; }
             else if (inventoryOpen) { inventoryOpen = false; paused = false; }
@@ -276,14 +298,37 @@ public class GameScreen implements Screen {
             shopOpen = true; inventoryOpen = false; paused = true;
         }
 
-        if (!attacking && Gdx.input.isKeyJustPressed(Input.Keys.E)) {
-            attacking = true;
+        if (!attacking && monsterAlive && Gdx.input.isKeyJustPressed(Input.Keys.E)) {
+            attacking  = true;
             attackTime = 0f;
+
+            TextureRegion curr = facingRight
+                ? knightRightAnim.getKeyFrame(stateTime)
+                : knightLeftAnim .getKeyFrame(stateTime);
+            float fw = curr.getRegionWidth(), fh = curr.getRegionHeight();
+            float hitX = facingRight ? x + fw : x - attackRange;
+            Rectangle hitBox = new Rectangle(hitX, y, attackRange, fh);
+            Rectangle mBox   = new Rectangle(monsterX, monsterY,
+                monsterTex.getWidth(),
+                monsterTex.getHeight());
+            if (hitBox.overlaps(mBox)) {
+                monsterHp -= 10;
+                if (monsterHp <= 0) {
+                    monsterAlive = false;
+                }
+            }
         }
 
         if (!paused) {
             if (attacking) {
                 attackTime += delta;
+                boolean done = facingRight
+                    ? attackRightAnim.isAnimationFinished(attackTime)
+                    : attackLeftAnim .isAnimationFinished(attackTime);
+                if (done) {
+                    attacking  = false;
+                    attackTime = 0f;
+                }
             } else {
                 if (Gdx.input.isKeyPressed(Input.Keys.A)) { x -= speed*delta; facingRight = false; }
                 if (Gdx.input.isKeyPressed(Input.Keys.D)) { x += speed*delta; facingRight = true;  }
@@ -294,40 +339,63 @@ public class GameScreen implements Screen {
                 velocityY -= gravity*delta;
                 y += velocityY*delta;
                 if (y < groundY) { y = groundY; velocityY = 0; }
+
                 stateTime += delta;
-                coinTime += delta;
+                coinTime  += delta;
             }
         }
 
         ScreenUtils.clear(0,0,0,1);
         batch.begin();
+
         batch.draw(backgroundTexture, 0, 0,
             Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
-        TextureRegion frame;
-        if (attacking) {
-            frame = facingRight
-                ? attackRightAnim.getKeyFrame(attackTime)
-                : attackLeftAnim .getKeyFrame(attackTime);
-            boolean done = facingRight
-                ? attackRightAnim.isAnimationFinished(attackTime)
-                : attackLeftAnim .isAnimationFinished(attackTime);
-            if (done) attacking = false;
-        } else {
-            frame = facingRight
-                ? knightRightAnim.getKeyFrame(stateTime)
-                : knightLeftAnim .getKeyFrame(stateTime);
+
+        TextureRegion heroFrame = attacking
+            ? (facingRight
+            ? attackRightAnim.getKeyFrame(attackTime)
+            : attackLeftAnim .getKeyFrame(attackTime))
+            : (facingRight
+            ? knightRightAnim.getKeyFrame(stateTime)
+            : knightLeftAnim .getKeyFrame(stateTime));
+        batch.draw(heroFrame, x, y);
+
+        if (monsterAlive) {
+            if (monsterX > x) monsterX -= monsterSpeed * delta;
+            else              monsterX += monsterSpeed * delta;
+
+            batch.draw(monsterTex, monsterX, monsterY);
+
+            Rectangle heroRect = new Rectangle(
+                x, y,
+                heroFrame.getRegionWidth(),
+                heroFrame.getRegionHeight()
+            );
+            Rectangle mRect = new Rectangle(
+                monsterX, monsterY,
+                monsterTex.getWidth(),
+                monsterTex.getHeight()
+            );
+            if (monsterAlive && mRect.overlaps(heroRect) && monsterDamageCooldown <= 0f) {
+                currentHp = Math.max(0, currentHp - 1);
+                hpBar.setValue(currentHp);
+                hpValueLabel.setText(currentHp + "/100");
+
+                monsterDamageCooldown = DAMAGE_COOLDOWN_TIME;
+            }
         }
-        batch.draw(frame, x, y);
+
         batch.end();
 
-        pauseMenu.setVisible(paused && !inventoryOpen && !shopOpen);
+        pauseMenu    .setVisible(paused && !inventoryOpen && !shopOpen);
         inventoryWindow.setVisible(inventoryOpen);
-        shopWindow.setVisible(shopOpen);
+        shopWindow    .setVisible(shopOpen);
 
         uiStage.act(delta);
         uiStage.draw();
         dialog.updateAndDraw(delta);
     }
+
 
     @Override public void resize(int w, int h)  {
         uiStage.getViewport().update(w,h,true);
@@ -350,5 +418,6 @@ public class GameScreen implements Screen {
         uiStage.dispose();
         skin.dispose();
         dialog.dispose();
+        if (monsterTex != null) monsterTex.dispose();
     }
 }
