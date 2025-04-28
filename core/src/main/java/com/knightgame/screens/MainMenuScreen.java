@@ -2,29 +2,31 @@ package com.knightgame.screens;
 
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.Screen;
-import com.badlogic.gdx.Preferences;
 import com.badlogic.gdx.audio.Music;
 import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
+import com.badlogic.gdx.graphics.g2d.TextureRegion;
 import com.badlogic.gdx.scenes.scene2d.InputEvent;
 import com.badlogic.gdx.scenes.scene2d.Stage;
+import com.badlogic.gdx.scenes.scene2d.ui.Image;
+import com.badlogic.gdx.scenes.scene2d.ui.ImageButton;
 import com.badlogic.gdx.scenes.scene2d.ui.Skin;
 import com.badlogic.gdx.scenes.scene2d.ui.Table;
-import com.badlogic.gdx.scenes.scene2d.ui.TextButton;
 import com.badlogic.gdx.scenes.scene2d.utils.ClickListener;
-import com.badlogic.gdx.utils.ScreenUtils;
+import com.badlogic.gdx.scenes.scene2d.utils.TextureRegionDrawable;
 import com.badlogic.gdx.utils.viewport.ScreenViewport;
 import com.knightgame.KnightGame;
 
 public class MainMenuScreen implements Screen {
     private final KnightGame game;
-    private Stage        stage;
-    private Skin         skin;
-    private Table        table;
-    private Texture      background;
-    private SpriteBatch  batch;
-    private Music        menuMusic;
-    private Preferences  prefs;
+    private Stage stage;
+    private SpriteBatch batch;
+    private Texture background;
+    private Music menuMusic;
+
+    private Texture titleTex;
+
+    private Texture continueTex, newGameTex, settingsTex, exitTex;
 
     public MainMenuScreen(KnightGame game) {
         this.game = game;
@@ -32,83 +34,82 @@ public class MainMenuScreen implements Screen {
 
     @Override
     public void show() {
-        // 1. Preferences
-        prefs = Gdx.app.getPreferences("Settings");
-        float savedVolume = prefs.getFloat("volume", 0.5f);
-        boolean savedMute = prefs.getBoolean("mute", false);
-
-        // 2. Load and play music
-        menuMusic = Gdx.audio.newMusic(Gdx.files.internal("menu.mp3"));
-        menuMusic.setLooping(true);
-        menuMusic.setVolume(savedMute ? 0f : savedVolume);
-        menuMusic.play();
-
-        // 3. Load background and batch
-        batch      = new SpriteBatch();
+        batch = new SpriteBatch();
         background = new Texture(Gdx.files.internal("background_menu.png"));
 
-        // 4. Set up Stage & Skin
+        menuMusic = Gdx.audio.newMusic(Gdx.files.internal("menu.mp3"));
+        menuMusic.setLooping(true);
+        menuMusic.setVolume(0.5f);
+        menuMusic.play();
+
+        titleTex     = new Texture(Gdx.files.internal("title.png"));
+        continueTex  = new Texture(Gdx.files.internal("button_continue.png"));
+        newGameTex   = new Texture(Gdx.files.internal("button_new_game.png"));
+        settingsTex  = new Texture(Gdx.files.internal("button_settings.png"));
+        exitTex      = new Texture(Gdx.files.internal("button_exit.png"));
+
         stage = new Stage(new ScreenViewport());
         Gdx.input.setInputProcessor(stage);
-        skin  = new Skin(Gdx.files.internal("uiskin.json"));
+        Skin skin = new Skin(Gdx.files.internal("uiskin.json"));
 
-        // 5. Build UI table
-        table = new Table(skin);
+        Table table = new Table(skin);
         table.setFillParent(true);
-        table.center();
+
+        table.top().padTop(1f);
+        table.defaults().space(1f);
         stage.addActor(table);
 
-        // 6. Buttons
-        TextButton btnStart = new TextButton("Continue", skin);
-        btnStart.addListener(new ClickListener() {
+        Image titleImage = new Image(new TextureRegionDrawable(new TextureRegion(titleTex)));
+        table.add(titleImage).padBottom(20f).row();
+
+        ImageButton btnContinue = new ImageButton(
+            new TextureRegionDrawable(new TextureRegion(continueTex))
+        );
+        btnContinue.addListener(new ClickListener() {
             @Override public void clicked(InputEvent event, float x, float y) {
-                // Якщо є механізм збереження, можна викликати game.loadGame();
-                game.setScreen(new GameScreen(game));
+             //   game.loadGame();
             }
         });
+        table.add(btnContinue).row();
 
-        TextButton btnNewGame = new TextButton("New Game", skin);
+        ImageButton btnNewGame = new ImageButton(
+            new TextureRegionDrawable(new TextureRegion(newGameTex))
+        );
         btnNewGame.addListener(new ClickListener() {
             @Override public void clicked(InputEvent event, float x, float y) {
                 game.setScreen(new GameScreen(game));
             }
         });
+        table.add(btnNewGame).row();
 
-        TextButton btnSettings = new TextButton("Settings", skin);
+        ImageButton btnSettings = new ImageButton(
+            new TextureRegionDrawable(new TextureRegion(settingsTex))
+        );
         btnSettings.addListener(new ClickListener() {
             @Override public void clicked(InputEvent event, float x, float y) {
                 game.setScreen(new SettingsScreen(game));
             }
         });
+        table.add(btnSettings).row();
 
-        TextButton btnExit = new TextButton("Exit", skin);
+        ImageButton btnExit = new ImageButton(
+            new TextureRegionDrawable(new TextureRegion(exitTex))
+        );
         btnExit.addListener(new ClickListener() {
             @Override public void clicked(InputEvent event, float x, float y) {
                 Gdx.app.exit();
             }
         });
-
-        // 7. Add to table with padding
-        table.add(btnStart).width(200).pad(10).row();
-        table.add(btnNewGame).width(200).pad(10).row();
-        table.add(btnSettings).width(200).pad(10).row();
-        table.add(btnExit).width(200).pad(10);
+        table.add(btnExit);
     }
 
     @Override
     public void render(float delta) {
-        // clear screen
-        ScreenUtils.clear(0f, 0f, 0f, 1f);
-
-        // draw background
         batch.begin();
-        batch.draw(background,
-            0, 0,
-            Gdx.graphics.getWidth(),
-            Gdx.graphics.getHeight());
+        batch.draw(background, 0, 0,
+            Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
         batch.end();
 
-        // update and draw UI
         stage.act(delta);
         stage.draw();
     }
@@ -118,27 +119,24 @@ public class MainMenuScreen implements Screen {
         stage.getViewport().update(width, height, true);
     }
 
-    @Override
-    public void pause() { }
-
-    @Override
-    public void resume() { }
+    @Override public void pause() {}
+    @Override public void resume() {}
 
     @Override
     public void hide() {
-        // stop music when leaving screen
-        if (menuMusic != null && menuMusic.isPlaying()) {
-            menuMusic.stop();
-        }
+        dispose();
     }
 
     @Override
     public void dispose() {
-        // dispose all resources
+        batch.dispose();
+        background.dispose();
         if (menuMusic != null) menuMusic.dispose();
-        if (background != null) background.dispose();
-        if (batch      != null) batch.dispose();
-        if (stage      != null) stage.dispose();
-        if (skin       != null) skin.dispose();
+        titleTex.dispose();
+        continueTex.dispose();
+        newGameTex.dispose();
+        settingsTex.dispose();
+        exitTex.dispose();
+        stage.dispose();
     }
 }

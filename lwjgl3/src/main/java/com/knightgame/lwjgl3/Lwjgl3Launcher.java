@@ -8,8 +8,9 @@ public class Lwjgl3Launcher {
     public static void main(String[] args) {
         Lwjgl3ApplicationConfiguration config = new Lwjgl3ApplicationConfiguration();
         config.setTitle("My Knight Game");
-        config.setWindowedMode(1920, 1080);
+        config.setFullscreenMode(Lwjgl3ApplicationConfiguration.getDisplayMode());
+        config.setDecorated(false);
+        config.setResizable(false);
         new Lwjgl3Application(new KnightGame(), config);
-
     }
 }
