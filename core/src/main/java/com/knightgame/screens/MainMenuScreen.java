@@ -37,10 +37,7 @@ public class MainMenuScreen implements Screen {
         batch = new SpriteBatch();
         background = new Texture(Gdx.files.internal("background_menu.png"));
 
-        menuMusic = Gdx.audio.newMusic(Gdx.files.internal("menu.mp3"));
-        menuMusic.setLooping(true);
-        menuMusic.setVolume(0.5f);
-        menuMusic.play();
+        game.playMenuMusic();
 
         titleTex     = new Texture(Gdx.files.internal("title.png"));
         continueTex  = new Texture(Gdx.files.internal("button_continue.png"));
@@ -102,6 +99,7 @@ public class MainMenuScreen implements Screen {
         });
         table.add(btnExit);
     }
+
 
     @Override
     public void render(float delta) {
