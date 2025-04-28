@@ -3,14 +3,19 @@ package com.knightgame.screens;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.Preferences;
 import com.badlogic.gdx.Screen;
+import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.Texture;
+import com.badlogic.gdx.graphics.g2d.BitmapFont;
 import com.badlogic.gdx.graphics.g2d.TextureRegion;
+import com.badlogic.gdx.graphics.g2d.freetype.FreeTypeFontGenerator;
+import com.badlogic.gdx.graphics.g2d.freetype.FreeTypeFontGenerator.FreeTypeFontParameter;
 import com.badlogic.gdx.scenes.scene2d.Actor;
 import com.badlogic.gdx.scenes.scene2d.InputEvent;
 import com.badlogic.gdx.scenes.scene2d.Stage;
 import com.badlogic.gdx.scenes.scene2d.ui.CheckBox;
 import com.badlogic.gdx.scenes.scene2d.ui.ImageButton;
 import com.badlogic.gdx.scenes.scene2d.ui.Label;
+import com.badlogic.gdx.scenes.scene2d.ui.Label.LabelStyle;
 import com.badlogic.gdx.scenes.scene2d.ui.Skin;
 import com.badlogic.gdx.scenes.scene2d.ui.Slider;
 import com.badlogic.gdx.scenes.scene2d.ui.Table;
@@ -54,6 +59,15 @@ public class SettingsScreen implements Screen {
         float savedVolume = prefs.getFloat("volume", 0.5f);
         boolean savedMute = prefs.getBoolean("mute", false);
 
+        FreeTypeFontGenerator generator =
+            new FreeTypeFontGenerator(Gdx.files.internal("fonts/custom_font.ttf"));
+        FreeTypeFontParameter param = new FreeTypeFontParameter();
+        param.size = 32;
+        param.characters = FreeTypeFontGenerator.DEFAULT_CHARS;
+        BitmapFont customFont = generator.generateFont(param);
+        generator.dispose();
+        LabelStyle labelStyle = new LabelStyle(customFont, Color.WHITE);
+
         stage = new Stage(new ScreenViewport());
         Gdx.input.setInputProcessor(stage);
 
@@ -69,7 +83,7 @@ public class SettingsScreen implements Screen {
         volumeSlider = new Slider(0f, 1f, 0.01f, false, skin);
         volumeSlider.setValue(savedVolume);
 
-        percentLabel = new Label((int)(savedVolume * 100) + "%", skin);
+        percentLabel = new Label((int)(savedVolume * 100) + "%", labelStyle);
 
         muteCheckbox = new CheckBox("Mute Sound", skin);
         muteCheckbox.setChecked(savedMute);
@@ -78,8 +92,7 @@ public class SettingsScreen implements Screen {
         restartButton = new ImageButton(new TextureRegionDrawable(
             new TextureRegion(restartTex)));
         restartButton.addListener(new ClickListener() {
-            @Override
-            public void clicked(InputEvent event, float x, float y) {
+            @Override public void clicked(InputEvent event, float x, float y) {
                 game.setScreen(new GameScreen(game));
             }
         });
@@ -88,8 +101,7 @@ public class SettingsScreen implements Screen {
         saveButton = new ImageButton(new TextureRegionDrawable(
             new TextureRegion(saveTex)));
         saveButton.addListener(new ClickListener() {
-            @Override
-            public void clicked(InputEvent event, float x, float y) {
+            @Override public void clicked(InputEvent event, float x, float y) {
                 prefs.putFloat("volume", volumeSlider.getValue());
                 prefs.putBoolean("mute", muteCheckbox.isChecked());
                 prefs.flush();
@@ -99,7 +111,6 @@ public class SettingsScreen implements Screen {
                 } else {
                     game.setMusicVolume(volumeSlider.getValue());
                 }
-
                 game.setScreen(returnScreen);
             }
         });
@@ -108,15 +119,13 @@ public class SettingsScreen implements Screen {
         backButton = new ImageButton(new TextureRegionDrawable(
             new TextureRegion(backTex)));
         backButton.addListener(new ClickListener() {
-            @Override
-            public void clicked(InputEvent event, float x, float y) {
+            @Override public void clicked(InputEvent event, float x, float y) {
                 game.setScreen(returnScreen);
             }
         });
 
         volumeSlider.addListener(new ChangeListener() {
-            @Override
-            public void changed(ChangeEvent event, Actor actor) {
+            @Override public void changed(ChangeEvent event, Actor actor) {
                 float v = volumeSlider.getValue();
                 percentLabel.setText((int)(v * 100) + "%");
                 if (!muteCheckbox.isChecked()) {
@@ -124,10 +133,8 @@ public class SettingsScreen implements Screen {
                 }
             }
         });
-
         muteCheckbox.addListener(new ChangeListener() {
-            @Override
-            public void changed(ChangeEvent event, Actor actor) {
+            @Override public void changed(ChangeEvent event, Actor actor) {
                 if (muteCheckbox.isChecked()) {
                     game.setMusicVolume(0f);
                 } else {
@@ -142,7 +149,7 @@ public class SettingsScreen implements Screen {
         table.setBackground(new TextureRegionDrawable(
             new TextureRegion(backgroundTexture)));
 
-        table.add(new Label("Settings", skin))
+        table.add(new Label("Settings", labelStyle))
             .colspan(1).padBottom(20).row();
         table.add(percentLabel).row();
         table.add(volumeSlider).width(300).row();
@@ -181,4 +188,3 @@ public class SettingsScreen implements Screen {
         backgroundTexture.dispose();
     }
 }
-
