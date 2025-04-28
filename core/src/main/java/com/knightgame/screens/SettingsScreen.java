@@ -13,6 +13,7 @@ import com.badlogic.gdx.scenes.scene2d.Actor;
 import com.badlogic.gdx.scenes.scene2d.InputEvent;
 import com.badlogic.gdx.scenes.scene2d.Stage;
 import com.badlogic.gdx.scenes.scene2d.ui.CheckBox;
+import com.badlogic.gdx.scenes.scene2d.ui.CheckBox.CheckBoxStyle;
 import com.badlogic.gdx.scenes.scene2d.ui.ImageButton;
 import com.badlogic.gdx.scenes.scene2d.ui.Label;
 import com.badlogic.gdx.scenes.scene2d.ui.Label.LabelStyle;
@@ -59,20 +60,30 @@ public class SettingsScreen implements Screen {
         float savedVolume = prefs.getFloat("volume", 0.5f);
         boolean savedMute = prefs.getBoolean("mute", false);
 
-        FreeTypeFontGenerator generator =
-            new FreeTypeFontGenerator(Gdx.files.internal("fonts/custom_font.ttf"));
-        FreeTypeFontParameter param = new FreeTypeFontParameter();
-        param.size = 32;
-        param.characters = FreeTypeFontGenerator.DEFAULT_CHARS;
-        BitmapFont customFont = generator.generateFont(param);
-        generator.dispose();
-        LabelStyle labelStyle = new LabelStyle(customFont, Color.WHITE);
-
+        skin = new Skin(Gdx.files.internal("uiskin.json"));
+        backgroundTexture = new Texture(Gdx.files.internal("settings_background.png"));
         stage = new Stage(new ScreenViewport());
         Gdx.input.setInputProcessor(stage);
 
-        skin = new Skin(Gdx.files.internal("uiskin.json"));
-        backgroundTexture = new Texture(Gdx.files.internal("settings_background.png"));
+        FreeTypeFontGenerator generator =
+            new FreeTypeFontGenerator(Gdx.files.internal("fonts/custom_font.ttf"));
+        FreeTypeFontParameter param = new FreeTypeFontParameter();
+        param.characters = FreeTypeFontGenerator.DEFAULT_CHARS;
+
+        param.size = 32;
+        BitmapFont largeFont = generator.generateFont(param);
+
+        param.size = 20;
+        BitmapFont smallFont = generator.generateFont(param);
+
+        generator.dispose();
+
+        LabelStyle titleStyle = new LabelStyle(largeFont, Color.WHITE);
+        LabelStyle percentStyle = new LabelStyle(largeFont, Color.WHITE);
+
+        CheckBoxStyle cbStyle = new CheckBoxStyle(skin.get(CheckBoxStyle.class));
+        cbStyle.font = smallFont;
+        cbStyle.fontColor = Color.WHITE;
 
         if (savedMute) {
             game.setMusicVolume(0f);
@@ -83,49 +94,42 @@ public class SettingsScreen implements Screen {
         volumeSlider = new Slider(0f, 1f, 0.01f, false, skin);
         volumeSlider.setValue(savedVolume);
 
-        percentLabel = new Label((int)(savedVolume * 100) + "%", labelStyle);
+        percentLabel = new Label((int)(savedVolume * 100) + "%", percentStyle);
 
-        muteCheckbox = new CheckBox("Mute Sound", skin);
+        muteCheckbox = new CheckBox("Mute Sound", cbStyle);
         muteCheckbox.setChecked(savedMute);
 
-        Texture restartTex = new Texture(Gdx.files.internal("button_restart.png"));
-        restartButton = new ImageButton(new TextureRegionDrawable(
-            new TextureRegion(restartTex)));
-        restartButton.addListener(new ClickListener() {
+        ImageButton restartBtn = new ImageButton(new TextureRegionDrawable(
+            new TextureRegion(new Texture(Gdx.files.internal("button_restart.png")))));
+        restartBtn.addListener(new ClickListener() {
             @Override public void clicked(InputEvent event, float x, float y) {
                 game.setScreen(new GameScreen(game));
             }
         });
 
-        Texture saveTex = new Texture(Gdx.files.internal("button_save.png"));
-        saveButton = new ImageButton(new TextureRegionDrawable(
-            new TextureRegion(saveTex)));
-        saveButton.addListener(new ClickListener() {
+        ImageButton saveBtn = new ImageButton(new TextureRegionDrawable(
+            new TextureRegion(new Texture(Gdx.files.internal("button_save.png")))));
+        saveBtn.addListener(new ClickListener() {
             @Override public void clicked(InputEvent event, float x, float y) {
                 prefs.putFloat("volume", volumeSlider.getValue());
                 prefs.putBoolean("mute", muteCheckbox.isChecked());
                 prefs.flush();
-
-                if (muteCheckbox.isChecked()) {
-                    game.setMusicVolume(0f);
-                } else {
-                    game.setMusicVolume(volumeSlider.getValue());
-                }
+                if (muteCheckbox.isChecked()) game.setMusicVolume(0f);
+                else                       game.setMusicVolume(volumeSlider.getValue());
                 game.setScreen(returnScreen);
             }
         });
 
-        Texture backTex = new Texture(Gdx.files.internal("button_back.png"));
-        backButton = new ImageButton(new TextureRegionDrawable(
-            new TextureRegion(backTex)));
-        backButton.addListener(new ClickListener() {
+        ImageButton backBtn = new ImageButton(new TextureRegionDrawable(
+            new TextureRegion(new Texture(Gdx.files.internal("button_back.png")))));
+        backBtn.addListener(new ClickListener() {
             @Override public void clicked(InputEvent event, float x, float y) {
                 game.setScreen(returnScreen);
             }
         });
 
         volumeSlider.addListener(new ChangeListener() {
-            @Override public void changed(ChangeEvent event, Actor actor) {
+            @Override public void changed(ChangeListener.ChangeEvent event, Actor actor) {
                 float v = volumeSlider.getValue();
                 percentLabel.setText((int)(v * 100) + "%");
                 if (!muteCheckbox.isChecked()) {
@@ -133,13 +137,11 @@ public class SettingsScreen implements Screen {
                 }
             }
         });
+
         muteCheckbox.addListener(new ChangeListener() {
-            @Override public void changed(ChangeEvent event, Actor actor) {
-                if (muteCheckbox.isChecked()) {
-                    game.setMusicVolume(0f);
-                } else {
-                    game.setMusicVolume(volumeSlider.getValue());
-                }
+            @Override public void changed(ChangeListener.ChangeEvent event, Actor actor) {
+                if (muteCheckbox.isChecked()) game.setMusicVolume(0f);
+                else                          game.setMusicVolume(volumeSlider.getValue());
             }
         });
 
@@ -149,14 +151,13 @@ public class SettingsScreen implements Screen {
         table.setBackground(new TextureRegionDrawable(
             new TextureRegion(backgroundTexture)));
 
-        table.add(new Label("Settings", labelStyle))
-            .colspan(1).padBottom(20).row();
+        table.add(new Label("Settings", titleStyle)).padBottom(20).row();
         table.add(percentLabel).row();
         table.add(volumeSlider).width(300).row();
         table.add(muteCheckbox).row();
-        table.add(restartButton).row();
-        table.add(saveButton).row();
-        table.add(backButton).row();
+        table.add(restartBtn).row();
+        table.add(saveBtn).row();
+        table.add(backBtn).row();
 
         stage.addActor(table);
     }
