@@ -3,8 +3,10 @@ package com.knightgame.screens;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.Input;
 import com.badlogic.gdx.Screen;
+import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.g2d.*;
+import com.badlogic.gdx.graphics.g2d.freetype.FreeTypeFontGenerator;
 import com.badlogic.gdx.math.Rectangle;
 import com.badlogic.gdx.scenes.scene2d.InputEvent;
 import com.badlogic.gdx.scenes.scene2d.Stage;
@@ -71,6 +73,8 @@ public class GameScreen implements Screen {
     private State state = State.PLAYING;
     private final float transitionSpeed = 200f;
 
+    private Label.LabelStyle hudLabelStyle;
+
     public GameScreen(KnightGame game) {
         this.game = game;
     }
@@ -78,7 +82,7 @@ public class GameScreen implements Screen {
     @Override
     public void show() {
         batch = new SpriteBatch();
-        backgroundTexture     = new Texture("background.png");
+        backgroundTexture     = new Texture("background.jpeg");
         nextBackgroundTexture = new Texture("background_1.png");
 
         knightRightSheet = new Texture("knightAnimationRight.png");
@@ -87,6 +91,16 @@ public class GameScreen implements Screen {
         knightLeftAnim   = splitAnimation(knightLeftSheet,  WALK_FRAMES, 0.2f, true);
         stateTime = 0f;
         facingRight = true;
+
+        FreeTypeFontGenerator gen = new FreeTypeFontGenerator(
+            Gdx.files.internal("fonts/custom_font.ttf"));
+        FreeTypeFontGenerator.FreeTypeFontParameter p = new FreeTypeFontGenerator.FreeTypeFontParameter();
+        p.size = 28;
+        p.characters = FreeTypeFontGenerator.DEFAULT_CHARS;
+        BitmapFont hudFont = gen.generateFont(p);
+        gen.dispose();
+
+        hudLabelStyle = new Label.LabelStyle(hudFont, Color.WHITE);
 
         attackRightSheet = new Texture("Attack1 R.png");
         attackLeftSheet  = new Texture("Attack1 L.png");
@@ -97,7 +111,7 @@ public class GameScreen implements Screen {
 
         coinSheet = new Texture("coin.png");
         int coinCols = coinSheet.getWidth() / coinSheet.getHeight();
-        coinAnim = splitAnimation(coinSheet, coinCols, 0.15f, true);
+        coinAnim = splitAnimation(coinSheet, coinCols, 0.30f, true);
         coinTime = 0f;
         coinImage = new Image(new TextureRegionDrawable(coinAnim.getKeyFrame(0)));
         coinImage.setSize(24,24);
@@ -239,20 +253,28 @@ public class GameScreen implements Screen {
         manaBar = new ProgressBar(1,MAX_MANA,1,false,skin);
         hpBar.setValue(currentHp);
         manaBar.setValue(currentMana);
-        hpValueLabel = new Label(currentHp+"/100", skin);
-        manaValueLabel = new Label(currentMana+"/100", skin);
-        goldDisplayLabel = new Label("Gold: "+gold, skin);
+
+        hpValueLabel      = new Label(currentHp + "/100", hudLabelStyle);
+        manaValueLabel    = new Label(currentMana + "/100", hudLabelStyle);
+        goldDisplayLabel  = new Label("Gold: " + gold, hudLabelStyle);
+
+        hpValueLabel = new Label(currentHp+"/100", hudLabelStyle);
+        manaValueLabel = new Label(currentMana+"/100", hudLabelStyle);
+        goldDisplayLabel = new Label("Gold: "+gold, hudLabelStyle);
         Table hud = new Table(skin);
         hud.setFillParent(true);
-        hud.top().left();
-        hud.add(new Label("HP:",skin)).pad(2);
-        hud.add(hpBar).width(150).height(20).pad(2);
-        hud.add(hpValueLabel).pad(2).row();
-        hud.add(new Label("Mana:",skin)).pad(2);
-        hud.add(manaBar).width(150).height(20).pad(2);
-        hud.add(manaValueLabel).pad(2).row();
-        hud.add(coinImage).size(24).pad(2);
-        hud.add(goldDisplayLabel).left().pad(2).row();
+        hud.top().left().pad(10);
+
+        hud.add(new Label("HP:",hudLabelStyle)).pad(4);
+        hud.add(hpBar).width(150).height(20).pad(4);
+        hud.add(hpValueLabel).pad(4).row();
+
+        hud.add(new Label("Mana:",hudLabelStyle)).pad(4);
+        hud.add(manaBar).width(150).height(20).pad(4);
+        hud.add(manaValueLabel).pad(4).row();
+
+        hud.add(coinImage).size(24).pad(4);
+        hud.add(goldDisplayLabel).pad(4).row();
         uiStage.addActor(hud);
     }
 
@@ -260,6 +282,7 @@ public class GameScreen implements Screen {
     public void render(float delta) {
         // Cooldown
         monsterDamageCooldown = Math.max(0f, monsterDamageCooldown - delta);
+        coinTime += delta;
 
         switch(state) {
             case LEVEL_OUT:
@@ -354,6 +377,9 @@ public class GameScreen implements Screen {
         }
 
         batch.end();
+
+        TextureRegion coinFrame = coinAnim.getKeyFrame(coinTime);
+        coinImage.setDrawable(new TextureRegionDrawable(coinFrame));
 
         if(state==State.PLAYING) {
             pauseMenu.setVisible(paused && !inventoryOpen && !shopOpen);
