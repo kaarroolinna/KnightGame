@@ -75,6 +75,9 @@ public class GameScreen implements Screen {
 
     private Label.LabelStyle hudLabelStyle;
 
+    private int monstersDefeated = 0;
+    private static final int MONSTERS_PER_LEVEL = 2;
+
     public GameScreen(KnightGame game) {
         this.game = game;
     }
@@ -121,6 +124,7 @@ public class GameScreen implements Screen {
         x = -knightRightSheet.getWidth() / WALK_FRAMES;
         y = groundY;
         paused = true;
+        monstersDefeated = 0;
 
         uiStage = new Stage(new ScreenViewport());
         skin    = new Skin(Gdx.files.internal("uiskin.json"));
@@ -132,7 +136,11 @@ public class GameScreen implements Screen {
 
         dialog = new DialogManager(skin, uiStage);
         dialog.showSequence(
-            () -> spawnMonster(),
+            () -> {
+                paused = false;
+                monstersDefeated = 0;
+                spawnMonster();
+            },
             "Alric (whispers to himself, gripping the hilt of his sword):",
             "This place... every step in it is like a wound to the heart.",
             "I remember their faces, their fear...",
@@ -302,6 +310,7 @@ public class GameScreen implements Screen {
                 if(x >= Gdx.graphics.getWidth()/2f - knightRightSheet.getWidth()/WALK_FRAMES/2f) {
                     state = State.PLAYING;
                     paused = false;
+                    monstersDefeated = 0;
                 }
                 break;
             default:
@@ -332,8 +341,13 @@ public class GameScreen implements Screen {
                         monsterHp -= 10;
                         if (monsterHp <= 0) {
                             monsterAlive = false;
-                            state = State.LEVEL_OUT;
-                            paused = true;
+                            monstersDefeated++;
+                            if (monstersDefeated < MONSTERS_PER_LEVEL) {
+                                spawnMonster();
+                            } else {
+                                state = State.LEVEL_OUT;
+                                paused = true;
+                            }
                         }
                     }
                 }
