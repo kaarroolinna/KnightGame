@@ -124,18 +124,21 @@ public class GameScreen implements Screen {
 
         uiStage = new Stage(new ScreenViewport());
         skin    = new Skin(Gdx.files.internal("uiskin.json"));
+        skin.add("custom-font", hudFont);
+        Label.LabelStyle defaultStyle = skin.get("default", Label.LabelStyle.class);
+        defaultStyle.font = hudFont;
+        defaultStyle.fontColor = Color.WHITE;
         Gdx.input.setInputProcessor(uiStage);
 
         dialog = new DialogManager(skin, uiStage);
         dialog.showSequence(
             () -> spawnMonster(),
-            "Hello, knight!",
-            "Let's start with the basics",
-            "Jump - Space",
-            "Inventory - I",
-            "Shop - Z",
-            "Attack - E",
-            "Try to kill the first monster!"
+            "Alric (whispers to himself, gripping the hilt of his sword):",
+            "This place... every step in it is like a wound to the heart.",
+            "I remember their faces, their fear...",
+            "My choice cost them their lives. But there is no turning back.",
+            "I must walk through this forest and find Elena.",
+            "Redemption awaits ahead - and there is no escaping it."
         );
 
         createPauseMenu();
