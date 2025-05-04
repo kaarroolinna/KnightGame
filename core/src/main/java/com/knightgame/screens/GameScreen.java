@@ -18,6 +18,7 @@ import com.badlogic.gdx.utils.ScreenUtils;
 import com.badlogic.gdx.utils.viewport.ScreenViewport;
 import com.knightgame.KnightGame;
 import com.knightgame.ui.DialogManager;
+import java.util.List;
 
 public class GameScreen implements Screen {
     private final KnightGame game;
@@ -60,11 +61,10 @@ public class GameScreen implements Screen {
     private DialogManager dialog;
 
     private Texture monsterTex;
-    private float   monsterX, monsterY;
-    private boolean monsterAlive;
-    private int     monsterHp;
-    private final float monsterSpeed = 250f;
-    private final float attackRange  = 50f;
+    private float monsterX, monsterY;
+    private boolean monsterAlive, monsterActive;
+    private int monsterHp;
+    private final float monsterSpeed = 250f, attackRange = 50f;
 
     private float monsterDamageCooldown;
     private static final float DAMAGE_COOLDOWN_TIME = 1f;
@@ -75,8 +75,18 @@ public class GameScreen implements Screen {
 
     private Label.LabelStyle hudLabelStyle;
 
-    private int monstersDefeated = 0;
-    private static final int MONSTERS_PER_LEVEL = 2;
+
+    private static class MonsterWave {
+        final String texturePath;
+        final String[] dialogue;
+        MonsterWave(String texturePath, String... dialogue) {
+            this.texturePath = texturePath;
+            this.dialogue = dialogue;
+        }
+    }
+
+    private List<MonsterWave> waves;
+    private int currentWave;
 
     public GameScreen(KnightGame game) {
         this.game = game;
@@ -124,7 +134,32 @@ public class GameScreen implements Screen {
         x = -knightRightSheet.getWidth() / WALK_FRAMES;
         y = groundY;
         paused = true;
-        monstersDefeated = 0;
+
+        // Ініціалізуємо хвилі монстрів, перша — вступний
+        waves = List.of(
+            new MonsterWave(
+                "monster.png",
+                "Alric (whispers to himself, gripping the hilt of his sword):",
+                "This place... every step in it is like a wound to the heart.",
+                "I remember their faces, their fear...",
+                "My choice cost them their lives.",
+                "But there is no turning back.",
+                "I must walk through this forest and find Elena.",
+                "Redemption awaits ahead - and there is no escaping it."
+            ),
+            new MonsterWave(
+                "monster.png",
+                "I can hear the footsteps of others."
+            ),
+            new MonsterWave(
+                "ghost_knight.png",
+                "Звідкись з-за скель лунає рев...",
+                "Другий супротивник на твоєму шляху!"
+            )
+        );
+        currentWave = 0;
+        monsterAlive = false;
+        monsterActive = false;
 
         uiStage = new Stage(new ScreenViewport());
         skin    = new Skin(Gdx.files.internal("uiskin.json"));
@@ -135,19 +170,7 @@ public class GameScreen implements Screen {
         Gdx.input.setInputProcessor(uiStage);
 
         dialog = new DialogManager(skin, uiStage);
-        dialog.showSequence(
-            () -> {
-                paused = false;
-                monstersDefeated = 0;
-                spawnMonster();
-            },
-            "Alric (whispers to himself, gripping the hilt of his sword):",
-            "This place... every step in it is like a wound to the heart.",
-            "I remember their faces, their fear...",
-            "My choice cost them their lives. But there is no turning back.",
-            "I must walk through this forest and find Elena.",
-            "Redemption awaits ahead - and there is no escaping it."
-        );
+        startNextWave();
 
         createPauseMenu();
         createInventory();
@@ -164,8 +187,21 @@ public class GameScreen implements Screen {
         return anim;
     }
 
-    private void spawnMonster() {
-        monsterTex   = new Texture("monster.png");
+    private void startNextWave() {
+        MonsterWave wave = waves.get(currentWave);
+        dialog.showSequence(
+            () -> {
+                paused = false;
+                monsterActive = true;
+                spawnWaveMonster(wave.texturePath);
+            },
+            wave.dialogue
+        );
+    }
+
+    private void spawnWaveMonster(String texturePath) {
+        if (monsterTex != null) monsterTex.dispose();
+        monsterTex   = new Texture(texturePath);
         monsterX     = Gdx.graphics.getWidth();
         monsterY     = groundY;
         monsterAlive = true;
@@ -290,6 +326,7 @@ public class GameScreen implements Screen {
         uiStage.addActor(hud);
     }
 
+
     @Override
     public void render(float delta) {
         // Cooldown
@@ -310,7 +347,6 @@ public class GameScreen implements Screen {
                 if(x >= Gdx.graphics.getWidth()/2f - knightRightSheet.getWidth()/WALK_FRAMES/2f) {
                     state = State.PLAYING;
                     paused = false;
-                    monstersDefeated = 0;
                 }
                 break;
             default:
@@ -340,12 +376,13 @@ public class GameScreen implements Screen {
                     if (monsterAlive && hitBox.overlaps(mBox)) {
                         monsterHp -= 10;
                         if (monsterHp <= 0) {
-                            monsterAlive = false;
-                            monstersDefeated++;
-                            if (monstersDefeated < MONSTERS_PER_LEVEL) {
-                                spawnMonster();
-                            } else {
-                                state = State.LEVEL_OUT;
+                            monsterAlive  = false;
+                            monsterActive = false;
+                            currentWave++;
+                            if(currentWave < waves.size()) {
+                                startNextWave();
+                            }else {
+                                state  = State.LEVEL_OUT;
                                 paused = true;
                             }
                         }
