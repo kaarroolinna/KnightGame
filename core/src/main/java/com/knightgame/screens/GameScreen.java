@@ -70,7 +70,7 @@ public class GameScreen implements Screen {
     private static final float DAMAGE_COOLDOWN_TIME = 1f;
 
     private enum State { PLAYING, LEVEL_OUT, LEVEL_IN }
-    private State state = State.PLAYING;
+    private State state = State.LEVEL_IN;
     private final float transitionSpeed = 200f;
 
     private Label.LabelStyle hudLabelStyle;
@@ -82,7 +82,7 @@ public class GameScreen implements Screen {
     @Override
     public void show() {
         batch = new SpriteBatch();
-        backgroundTexture     = new Texture("background.jpeg");
+        backgroundTexture     = new Texture("background.jpg");
         nextBackgroundTexture = new Texture("background_1.png");
 
         knightRightSheet = new Texture("knightAnimationRight.png");
@@ -118,8 +118,9 @@ public class GameScreen implements Screen {
 
         groundY = 0;
         velocityY = 0;
-        x = Gdx.graphics.getWidth()/2f - knightRightSheet.getWidth()/WALK_FRAMES/2f;
+        x = -knightRightSheet.getWidth() / WALK_FRAMES;
         y = groundY;
+        paused = true;
 
         uiStage = new Stage(new ScreenViewport());
         skin    = new Skin(Gdx.files.internal("uiskin.json"));
@@ -313,17 +314,17 @@ public class GameScreen implements Screen {
                     shopOpen=true; inventoryOpen=false; paused=true;
                 }
                 if (!attacking && Gdx.input.isKeyJustPressed(Input.Keys.E) && state==State.PLAYING) {
-                attacking  = true;
-                attackTime = 0f;
+                    attacking  = true;
+                    attackTime = 0f;
 
-                TextureRegion curr = facingRight
-                    ? knightRightAnim.getKeyFrame(stateTime)
-                    : knightLeftAnim .getKeyFrame(stateTime);
-                float fw = curr.getRegionWidth(), fh = curr.getRegionHeight();
-                float hitX = facingRight ? x + fw : x - attackRange;
-                Rectangle hitBox = new Rectangle(hitX, y, attackRange, fh);
-                Rectangle mBox   = new Rectangle(monsterX, monsterY,
-                    monsterTex.getWidth(), monsterTex.getHeight());
+                    TextureRegion curr = facingRight
+                        ? knightRightAnim.getKeyFrame(stateTime)
+                        : knightLeftAnim .getKeyFrame(stateTime);
+                    float fw = curr.getRegionWidth(), fh = curr.getRegionHeight();
+                    float hitX = facingRight ? x + fw : x - attackRange;
+                    Rectangle hitBox = new Rectangle(hitX, y, attackRange, fh);
+                    Rectangle mBox   = new Rectangle(monsterX, monsterY,
+                        monsterTex.getWidth(), monsterTex.getHeight());
                     if (monsterAlive && hitBox.overlaps(mBox)) {
                         monsterHp -= 10;
                         if (monsterHp <= 0) {
